@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+backend/venv/
+backend/env/
+.venv/
+
+# Next.js build output
+.next/
+out/
+build/
+dist/
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local Vector Storage & DBs
+backend/qdrant_storage/
+qdrant_storage/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
