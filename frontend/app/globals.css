@@ -1,18 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #090d16;
-  --foreground: #f1f5f9;
+  --background: #090e1a;
+  --foreground: #f8fafc;
 }
 
 body {
   color: var(--foreground);
   background-color: var(--background);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
 }
 
@@ -23,53 +23,80 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #0c1222;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #25334d;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #384b6e;
 }
 
-/* Glassmorphic elements */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(51, 65, 85, 0.4);
-}
-
-.glass-panel-glow {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-}
-
-/* Engineering blueprint grid overlay */
-.blueprint-bg {
+/* Sophisticated architectural background */
+.site-bg-pattern {
+  background-color: #090e1a;
   background-image: 
-    linear-gradient(rgba(30, 41, 59, 0.25) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(30, 41, 59, 0.25) 1px, transparent 1px);
-  background-size: 32px 32px;
+    radial-gradient(at 10% 10%, rgba(249, 115, 22, 0.04) 0px, transparent 50%),
+    radial-gradient(at 90% 0%, rgba(2, 132, 199, 0.04) 0px, transparent 50%),
+    linear-gradient(rgba(30, 45, 74, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 45, 74, 0.2) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
 }
 
-.glow-compliant {
-  box-shadow: 0 0 30px -5px rgba(16, 185, 129, 0.25);
-  border-color: rgba(16, 185, 129, 0.5);
+/* Polished Card Elements */
+.app-card {
+  background: #111a2e;
+  border: 1px solid #1e2c47;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
 }
 
-.glow-non-compliant {
-  box-shadow: 0 0 30px -5px rgba(239, 68, 68, 0.25);
-  border-color: rgba(239, 68, 68, 0.5);
+.app-card-interactive {
+  background: #111a2e;
+  border: 1px solid #1e2c47;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.glow-ambiguous {
-  box-shadow: 0 0 30px -5px rgba(245, 158, 11, 0.25);
-  border-color: rgba(245, 158, 11, 0.5);
+.app-card-interactive:hover {
+  border-color: #2e436b;
+  background: #152038;
+  transform: translateY(-1px);
+}
+
+/* Status glow effects */
+.glow-pass {
+  box-shadow: 0 0 25px -4px rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.glow-fail {
+  box-shadow: 0 0 25px -4px rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.glow-warn {
+  box-shadow: 0 0 25px -4px rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+/* Print styles for official inspection report */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .app-card, .app-card-interactive {
+    background: #ffffff !important;
+    border: 1px solid #cccccc !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+  }
 }

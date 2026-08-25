@@ -1,9 +1,9 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'SiteShield AI — On-Site Construction Compliance Verification',
+  title: 'SiteShield — Building Code & Jobsite Compliance Advisor',
   description:
-    'Instant, strictly grounded statutory code compliance verification for active construction jobsites. Cross-reference IBC, NEC, UPC, project specifications, and inspection logs with hybrid vector retrieval.',
+    'Instant, reliable building code compliance and safety guidance for construction professionals. Cross-reference IBC, NEC, UPC, project specifications, and jobsite requirements.',
 };
 
 export const viewport = {
@@ -15,7 +15,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen bg-titanium-950 text-slate-100 antialiased blueprint-bg selection:bg-amber-500/30 selection:text-amber-200">
+      <body className="min-h-screen bg-[#090e1a] text-slate-100 antialiased site-bg-pattern selection:bg-orange-500/30 selection:text-orange-200">
         {children}
       </body>
     </html>
