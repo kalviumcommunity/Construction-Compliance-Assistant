@@ -1,304 +1,285 @@
-# 🏗️ Construction Compliance Assistant
-### Regulation & Inspection Support System
+# 🏗️ SiteSafe: Construction Regulatory Compliance Assistant
+### Production-Grade Hybrid RAG Engine for Building Codes, Project Specifications, and Inspection Verification
 
-> A Retrieval-Augmented Generation (RAG) application that helps site engineers instantly identify applicable regulations, verify project specifications, and review inspection findings — with grounded answers and source citations.
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Next.js](https://img.shields.io/badge/Next.js-14+-000000.svg?logo=next.js&logoColor=white)](https://nextjs.org)
+[![Qdrant](https://img.shields.io/badge/Qdrant-Hybrid_Vector_Store-dc2626.svg?logo=qdrant&logoColor=white)](https://qdrant.tech)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776ab.svg?logo=python&logoColor=white)](https://python.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6.svg?logo=typescript&logoColor=white)](https://typescriptlang.org)
 
----
-
-## 📌 Project Information
-
-| Field | Detail |
-|-------|--------|
-| **Version** | 1.0.0 |
-| **Status** | In Development |
-| **Created** | August 2026 |
-| **Team** | Team 04 |
-| **Sprint** | Sprint 2 |
+> **SiteSafe** transforms dense, fragmented construction regulatory libraries into an authoritative, grounded decision engine. Site engineers, QA/QC inspectors, and superintendents ask natural-language questions regarding on-site field conditions and receive instant, source-cited compliance determinations (**Compliant**, **Non-Compliant**, or **Ambiguous/Insufficient Data**) backed by exact verbatim quotes from governing codes, specifications, and inspection logs.
 
 ---
 
-## 🚨 Problem Statement
+## 📌 Systems Architecture
 
-Construction firms maintain large volumes of technical and regulatory documentation — building codes, project specifications, and inspection reports. However, site engineers often cannot quickly confirm which regulation applies to a specific construction situation.
-
-This forces engineers to manually search through multiple lengthy documents, increasing the risk of:
-
-- Relying on incorrect or outdated regulatory information
-- Missing applicable compliance requirements
-- Costly compliance errors and failed inspections
-- Project delays caused by slow verification workflows
-
-**There is no centralized AI-powered assistant that connects these construction documents and allows engineers to ask natural-language questions about applicable regulations and receive grounded answers with source references.**
-
----
-
-## 💡 Solution
-
-The **Construction Compliance Assistant** transforms a static document corpus into an intelligent, searchable knowledge system using a RAG pipeline. Engineers can ask compliance questions in plain English and receive fast, grounded answers backed by source citations.
-
-The platform answers three critical questions:
-
-1. **Which regulation applies** to this construction situation?
-2. **What do the building codes, project specifications, or inspection reports require?**
-3. **What source supports the answer** — and when should the system say "I don't know"?
-
----
-
-## ⚙️ Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Language** | Python |
-| **Document Processing** | Text extraction, cleaning, chunking |
-| **Embeddings** | Embeddings API |
-| **Vector Database** | Vector DB (similarity-based retrieval) |
-| **AI / LLM** | Large Language Model for grounded answer generation |
-| **Frontend** | Next.js / Streamlit |
-| **Version Control** | Git & GitHub |
-| **CI/CD** | GitHub Actions |
-| **IDE** | Visual Studio Code |
-
----
-
-## 🔁 RAG Pipeline
+SiteSafe utilizes a **Hybrid Dense + Sparse BM25 Retrieval-Augmented Generation (RAG)** architecture with strict zero-hallucination guardrails:
 
 ```
-Building Codes
-      +
-Project Specifications  →  Document Processing  →  Chunking  →  Embeddings
-      +
-Inspection Reports
-                                                                      ↓
-                                                            Vector Database
-                                                                      ↓
-                                               User Query  →  Relevant Chunk Retrieval
-                                                                      ↓
-                                                          LLM + Retrieved Context
-                                                                      ↓
-                                                  Grounded Answer + Source Citation
-                                               (or "I don't know" if unsupported)
+                                  [ On-Site Field Condition / Query ]
+                                                   |
+                                                   v
+                         +---------------------------------------------------+
+                         |         Metadata Pre-Filtering Engine            |
+                         |  (Trade: Electrical | Structural | Fire | Plumb)  |
+                         |  (Jurisdiction: National | California | NYC)      |
+                         |  (Document Scope: Code | Project Spec | Inspect)  |
+                         +---------------------------------------------------+
+                                                   |
+                         +-------------------------+-------------------------+
+                         |                                                   |
+                         v                                                   v
+            [ Dense Semantic Embedder ]                         [ Sparse BM25 Lexical Embedder ]
+           OpenAI text-embedding-3-small                              FastEmbed Qdrant/bm25
+               / FastEmbed BGE-small                                (Exact Clause/Section Matching)
+                         |                                                   |
+                         +-------------------------+-------------------------+
+                                                   |
+                                                   v
+                                 +-----------------------------------+
+                                 |       Qdrant Vector Database      |
+                                 |  Dual Vectors (Dense + BM25)      |
+                                 |  Payload Inverted Indexes         |
+                                 +-----------------------------------+
+                                                   |
+                                                   v
+                                 +-----------------------------------+
+                                 |   Reciprocal Rank Fusion (RRF)    |
+                                 |   Fused Top-K Candidate Chunks    |
+                                 +-----------------------------------+
+                                                   |
+                                                   v
+                                 +-----------------------------------+
+                                 | Grounded Compliance Reasoner      |
+                                 | (GPT-4o-mini / Expert Rule Engine)|
+                                 | - Strict Context Grounding        |
+                                 | - Verbatim Direct Quotes          |
+                                 | - Deterministic Safe Refusal      |
+                                 +-----------------------------------+
+                                                   |
+                                                   v
+                                  [ Structured Compliance Response ]
+                                  - Verdict (Compliant / Non-Compliant)
+                                  - Technical Regulatory Analysis
+                                  - Direct Quote Citations
+                                  - Recommended Field Actions
 ```
 
 ---
 
-## ✨ Features
+## 🚀 Key Engineering Capabilities
 
-### Core (MVP)
-- 🔍 **Natural-language compliance search** across building codes, project specifications, and inspection reports
-- 📄 **Source-cited answers** — every response includes the document and section that supports it
-- 🚫 **"I don't know" handling** — the system refuses to guess when the corpus lacks sufficient information
-- 🗂️ **Metadata-based filtering** — retrieval scoped by document type, project, and section
-- 💬 **Conversational interface** — ask follow-up questions in a simple chat-style UI
-- ✅ **Grounded responses only** — answers are strictly based on retrieved document content; no hallucination
-
-### Document Sources
-| Source | What It Provides |
-|--------|-----------------|
-| Building Codes | Regulations, safety requirements, construction standards |
-| Project Specifications | Project-specific technical requirements and materials |
-| Inspection Reports | Previous findings, observations, and compliance-related information |
+1. **Defensive Ingestion & Multi-Format Support**:
+   - Heterogeneous document parser supporting **PDF** (`pypdf`), **HTML** (`BeautifulSoup4`), **Markdown**, and **Plain Text**.
+   - Strict integrity validation: zero-byte and corrupted files are caught and logged without aborting batch ingestion.
+2. **Text Cleaning & Legal Preservation**:
+   - Strips running headers, footers, pagination artifacts, and confidentiality disclaimers.
+   - Heals line-wrap broken hyphenations (`fire-re-\nsistance` -> `fire-resistance`).
+   - Normalizes Unicode NFKC and typographic quotes while strictly preserving legal indentations and numbered clauses.
+3. **Table-Preserving Token Chunker**:
+   - Token-aware sliding window chunker (`tiktoken` `o200k_base` with fallback to `cl100k_base`).
+   - **Atomic Table Preservation**: Detects Markdown and ASCII tables (e.g. setback distance tables, fire rating schedules) and keeps them intact, preventing splits across rows or columns.
+   - Overlap preserves boundary-straddling conditional clauses (*Prohibitions linked to "EXCEPT WHERE" exceptions*).
+4. **Hybrid Retrieval with Reciprocal Rank Fusion (RRF)**:
+   - Dense embeddings capture conceptual meaning; sparse BM25 embeddings guarantee precision on exact clause numbers (e.g., `IBC 705.8`, `NEC 300.22`, `UPC 312.2`).
+   - Metadata pre-filtering prevents cross-project or wrong-jurisdiction contamination.
+5. **Zero Hallucination & Deterministic Safe Refusal**:
+   - Enforces context-grounded reasoning. Every finding requires verbatim direct quotes.
+   - **Safe Response Handling**: When retrieved context is missing, ambiguous, or out-of-scope, the model deterministically responds with `Ambiguous/Insufficient Data` ("I don't know"), explains missing parameters, and issues Request for Information (RFI) recommendations.
+6. **API Security & Rate Limiting**:
+   - Ingestion and reindexing endpoints (`POST /api/ingest/upload`, `POST /api/reindex`) are protected by `X-API-Key` authentication and sliding-window rate limiting.
+7. **Resilient Next.js Frontend**:
+   - Real-time compliance assistant with 45-second timeout protection and graceful error handling.
+   - Document Knowledge Base explorer with dynamic file upload modal.
+   - RAG Search Explorer inspecting raw chunk retrieval, RRF scores, and metadata.
+   - Automated Evaluation Dashboard running live benchmarks across disciplinary test matrices.
 
 ---
 
-## 🚀 Getting Started
+## 📁 Repository Layout
+
+```
+RAG/
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── config.py              # Pydantic settings, environment configs, thresholds
+│   │   ├── main.py                # FastAPI application, lifespan, CORS configuration
+│   │   ├── api/
+│   │   │   ├── __init__.py
+│   │   │   ├── routes.py          # REST endpoints (/health, /documents, /verify-compliance, /ingest/upload, /stats)
+│   │   │   └── security.py        # X-API-Key verification & upload rate limiter
+│   │   ├── data/
+│   │   │   ├── __init__.py
+│   │   │   └── regulatory_corpus.py # Authoritative construction codes, specs, and reports
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   └── schemas.py         # Pydantic v2 schemas for requests, responses, and citations
+│   │   └── rag/
+│   │       ├── __init__.py
+│   │       ├── document_loader.py # Multi-format loader with corruption handling
+│   │       ├── text_cleaner.py    # Boilerplate stripping, unicode NFKC, hyphen healing
+│   │       ├── chunker.py         # Token-aware sliding chunker with table preservation
+│   │       ├── metadata_tagger.py # Regex legal clause extraction & uniform metadata tagging
+│   │       ├── embeddings.py      # Dense (OpenAI / FastEmbed) & BM25 sparse embedders
+│   │       ├── vector_store.py    # Qdrant client, hybrid collection, payload indexes
+│   │       ├── retriever.py       # Hybrid RRF search & metadata pre-filtering
+│   │       ├── generator.py       # Grounded compliance generation & safe refusal
+│   │       └── pipeline.py        # Master coordinator orchestrating ingestion & retrieval
+│   ├── corpus/                    # File-based construction document storage (PDF, HTML, MD, TXT)
+│   ├── tests/
+│   │   ├── __init__.py
+│   │   └── test_rag_pipeline.py   # 14 automated unit & integration tests
+│   ├── main.py                    # Top-level server entry point
+│   ├── test_api.py                # Standalone API verification script
+│   ├── requirements.txt           # Production Python dependencies
+│   └── .env.example               # Environment variable template
+│
+├── frontend/
+│   ├── src/
+│   │   ├── app/                   # Next.js 14 App Router pages
+│   │   ├── components/
+│   │   │   ├── assistant/         # Compliance assistant UI, QueryForm, ResultsView, Toolbar
+│   │   │   ├── pages/             # DashboardPage, DocumentsPage, SearchPage, EvaluationPage
+│   │   │   └── layout/            # Sidebar, Topbar navigation
+│   │   ├── lib/
+│   │   │   └── api.ts             # Production API client with timeout protection & types
+│   │   └── types/                 # Shared TypeScript interfaces
+│   ├── package.json
+│   └── tailwind.config.js
+│
+├── docs/
+│   └── reports/                   # Archived historical milestone reports & evaluation logs
+├── README.md                      # Production system documentation
+└── WORKFLOW.md                    # Git collaboration & team branching guidelines
+```
+
+---
+
+## 🛠️ Quickstart Guide
 
 ### Prerequisites
+- Python 3.10+ (Python 3.11 recommended)
+- Node.js 18+ & npm
+- (Optional) OpenAI API Key for GPT-4o-mini generation. *SiteSafe includes a high-fidelity local deterministic rule engine and FastEmbed ONNX models for 100% offline operation without API keys.*
 
-- Python 3.9+
-- Node.js (for Next.js frontend, if applicable)
-- Access to an Embeddings API
-- Access to a Vector Database
-- Access to an LLM API
-- Git
+---
 
-### Installation
+### 1. Backend Setup
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/<your-org>/construction-compliance-assistant.git
-cd construction-compliance-assistant
+```powershell
+# Navigate to backend directory
+cd backend
 
-# 2. Create and activate a virtual environment
+# Create and activate virtual environment (Windows PowerShell)
 python -m venv venv
-source venv/bin/activate        # macOS/Linux
-venv\Scripts\activate           # Windows
+.\venv\Scripts\activate
 
-# 3. Install dependencies
+# Install production dependencies
 pip install -r requirements.txt
+
+# Copy environment configuration
+cp .env.example .env
+
+# Launch the FastAPI backend server
+uvicorn main:app --port 8000 --reload
 ```
 
-### Environment Configuration
+The backend server will start at `http://127.0.0.1:8000`.
+Interactive OpenAPI docs are available at `http://127.0.0.1:8000/docs`.
 
-Create a `.env` file in the project root (never commit this file):
+---
 
-```env
-EMBEDDINGS_API_KEY=your_embeddings_api_key
-LLM_API_KEY=your_llm_api_key
-VECTOR_DB_URL=your_vector_database_url
-VECTOR_DB_API_KEY=your_vector_db_api_key
-```
+### 2. Frontend Setup
 
-> ⚠️ Never hard-code API keys. The `.env` file is excluded from version control via `.gitignore`.
-
-### Document Ingestion
-
-```bash
-# Place your documents in the /data directory:
-# data/building_codes/
-# data/project_specifications/
-# data/inspection_reports/
-
-# Run the ingestion pipeline
-python pipeline/ingest.py
-```
-
-This will:
-1. Validate and clean all documents
-2. Chunk documents into retrievable sections
-3. Generate embeddings for each chunk
-4. Index chunks and metadata in the vector database
-
-### Running the Application
-
-```bash
-# Option A — Streamlit
-streamlit run app.py
-
-# Option B — Next.js frontend (from /frontend directory)
+```powershell
+# Navigate to frontend directory
 cd frontend
+
+# Install Node dependencies
 npm install
+
+# Start Next.js development server
 npm run dev
 ```
 
+The frontend application will start at `http://localhost:3000`.
+
 ---
 
-## 📁 Project Structure
+### 3. Automated Test Suite
 
+Run the comprehensive 14-test verification suite covering document parsing, table-preserving chunking, multi-trade evaluations, safe refusal, and API security:
+
+```powershell
+cd backend
+.\venv\Scripts\python.exe tests/test_rag_pipeline.py
 ```
-construction-compliance-assistant/
-├── data/
-│   ├── building_codes/         # Building code documents
-│   ├── project_specifications/ # Project specification documents
-│   └── inspection_reports/     # Inspection report documents
-│
-├── pipeline/
-│   ├── ingest.py               # Document ingestion entry point
-│   ├── loader.py               # Document loading and format handling
-│   ├── cleaner.py              # Text cleaning and normalization
-│   ├── chunker.py              # Document chunking logic
-│   ├── embedder.py             # Embedding generation
-│   └── indexer.py              # Vector database indexing
-│
-├── retrieval/
-│   ├── retriever.py            # Semantic search and top-k retrieval
-│   └── metadata_filter.py      # Metadata-based filtering
-│
-├── generation/
-│   ├── prompt_builder.py       # RAG prompt construction
-│   ├── answer_generator.py     # LLM answer generation
-│   └── citation_handler.py     # Source citation formatting
-│
-├── evaluation/
-│   ├── test_questions.json     # Predefined evaluation questions
-│   └── evaluator.py            # Retrieval and answer quality evaluation
-│
-├── frontend/                   # Next.js frontend (if applicable)
-├── app.py                      # Streamlit application entry point
-├── tests/                      # Unit tests (≥ 80% coverage target)
-├── .env.example                # Environment variable template
-├── .gitignore
-├── requirements.txt
-└── README.md
+
+Expected output:
+```text
+================================================================================
+SITESAFE RAG PIPELINE & API AUTOMATED TEST SUITE
+================================================================================
+ [PASS] Document Loading & Corruption Checks
+ [PASS] Text Normalization & Hyphen Healing
+ [PASS] Table-Preserving Chunking (Never Splits Tables)
+ [PASS] Metadata Tagging & Clause Extraction
+ [PASS] Health & Status Endpoint
+ [PASS] Knowledge Base Documents Endpoint
+ [PASS] Electrical Trade (NEC 300.22 PVC in Plenum)
+ [PASS] Structural Trade (Spec 03 30 00 Concrete PSI)
+ [PASS] Fire Safety Trade (IBC 714.4 Firestop Sealant)
+ [PASS] Plumbing Trade (UPC 312.2 Hydrostatic Test)
+ [PASS] Strict Safe Refusal ('I Don't Know / Insufficient Data')
+ [PASS] API Security: 401 on Unauthorized Upload
+ [PASS] API Security: 200 on Authorized Upload
+ [PASS] Corpus Statistics Endpoint
+================================================================================
+ALL 14/14 TESTS PASSED SUCCESSFULLY!
+================================================================================
 ```
 
 ---
 
-## 📊 Success Metrics
+## 🔍 Verification Examples across Trades
 
-| Metric | Target |
-|--------|--------|
-| Regulation Retrieval Accuracy | ≥ 90% |
-| Relevant Document Retrieval | ≥ 90% |
-| Grounded Answer Accuracy | ≥ 90% |
-| Source Citation Accuracy | ≥ 95% |
-| "I Don't Know" Accuracy | ≥ 95% |
-| Answer Response Time | < 5 seconds |
-| Document Processing Success Rate | ≥ 95% |
-| Unit Test Coverage | ≥ 80% |
+### Example 1: Electrical Discipline (Violation Detected)
+- **Field Query**: *"Can we install 1-inch Schedule 40 PVC conduit for low-voltage controls in the drop-ceiling return air plenum?"*
+- **Verdict**: `Non-Compliant`
+- **Governing Citation**: `NEC Article 300.22(C)` (NFPA 70: National Electrical Code)
+- **Direct Quote**: *"Rigid nonmetallic conduit (Schedule 40/80 PVC), Electrical Nonmetallic Tubing (ENT), and general nonmetallic raceways are strictly PROHIBITED from being installed in environmental air spaces or plenums."*
+- **Action**: Issue Non-Conformance Notice (NCR); replace with Electrical Metallic Tubing (EMT) and steel compression fittings.
 
----
+### Example 2: Structural Discipline (Approved Condition)
+- **Field Query**: *"Cylinder break tests achieved 4,850 psi at 28 days for elevated post-tensioned deck slab. Is this compliant?"*
+- **Verdict**: `Compliant`
+- **Governing Citation**: `Project Spec Div 03 30 00 §2.03.A` (Cast-in-Place Structural Concrete)
+- **Direct Quote**: *"Elevated Post-Tensioned Slabs & Shear Walls: Minimum 28-day compressive strength (f'c) shall be 4,500 psi (31.0 MPa)."*
+- **Action**: Submit official test cylinder certificates to Structural Engineer of Record (EOR) and authorize tendon stressing operations.
 
-## 🧪 Evaluation
-
-The system is evaluated using a predefined set of construction compliance questions:
-
-```bash
-# Run RAG evaluation
-python evaluation/evaluator.py
-```
-
-Evaluation covers:
-- **Retrieval accuracy** — are the correct document chunks retrieved?
-- **Grounded answer accuracy** — does the answer align with retrieved content?
-- **Citation accuracy** — do citations correctly support the generated answer?
-- **"I don't know" accuracy** — does the system correctly refuse unsupported questions?
+### Example 3: Out-of-Scope / Safe Refusal (Refusal to Hallucinate)
+- **Field Query**: *"What is the allowable paint hue for the janitor closet door hinges under city guidelines?"*
+- **Verdict**: `Ambiguous/Insufficient Data`
+- **Technical Analysis**: *"A hybrid search returned zero governing statutory code or specification references for this observation. Per strict zero-hallucination compliance rules, the system strictly refuses to speculate or issue an ungrounded determination."*
+- **Action**: Submit formal Request for Information (RFI) to project architect.
 
 ---
 
-## 👥 Team
+## 🛡️ API Endpoints Reference
 
-| Name | Role | Responsibilities |
-|------|------|-----------------|
-| **Megha R.** | UI/UX Designer | Interface design, user flows, chat UI, source/citation display, frontend collaboration |
-| **A Balagiri** | RAG & Backend Developer | Document processing, chunking, embeddings, vector DB integration, retrieval logic |
-| **Bhavendra Kumar Y** | Frontend Developer | Chat interface, responsive UI, answer/citation display, frontend integration |
-
----
-
-## 📐 Architecture Notes
-
-### Document Processing
-- All documents are validated for format and completeness before ingestion
-- Corrupted or unreadable documents are logged without interrupting the pipeline
-- Documents are cleaned, normalized, and divided into meaningful chunks
-- Each chunk retains metadata: `document_type`, `document_title`, `section`, `source`, `project_id`
-
-### Retrieval
-- User queries are converted to embeddings and matched against the vector index
-- Top-k most semantically similar chunks are retrieved
-- Metadata filters can scope results to a specific document type or project
-
-### Answer Generation
-- Retrieved chunks are injected into the LLM prompt as grounding context
-- The LLM generates an answer strictly from the provided context
-- Every answer includes source citations
-- If no relevant chunks are retrieved, the system responds: **"I don't know"**
+| Method | Path | Description | Security |
+|--------|------|-------------|----------|
+| `GET` | `/api/health` | Service status, vector store health, trade taxonomy | Public |
+| `GET` | `/api/documents` | List of indexed codes, specifications, and reports | Public |
+| `POST` | `/api/verify-compliance` | Evaluates field observations against regulatory chunks | Public |
+| `POST` | `/api/ingest/upload` | Securely upload and index PDF/MD/HTML/TXT documents | `X-API-Key` + Rate Limiter |
+| `POST` | `/api/reindex` | Force re-index of full knowledge base | `X-API-Key` |
+| `GET` | `/api/stats` | Corpus analytics, chunk counts, trade breakdown | Public |
 
 ---
 
-## 🔒 Security
+## 👥 Authors & License
 
-- API keys and secrets are stored in `.env` files and excluded from version control
-- Construction documents and confidential project data are not exposed in the repository
-- Document content is not unintentionally leaked through application logs
-- Access to the document corpus is restricted to authorized users
-
----
-
-## 🛠️ Code Quality
-
-- Python code follows **PEP 8** standards
-- RAG components are modular and clearly separated
-- All major functions and components include documentation
-- Unit tests achieve ≥ 80% coverage for critical components
-- **GitHub Actions** runs automated checks on every push and pull request
-
----
-
-## 📄 License
-
-This project is developed as part of the Kalvium UG Program — Software Product Engineering (Sprint 2). For internal use only.
-
----
-
-> *"The Construction Compliance Assistant bridges the gap between a large construction document corpus and fast, reliable compliance verification — enabling engineers to ask questions in natural language and receive grounded, cited, and trustworthy answers."*
+Developed as a production-grade regulatory RAG system for the Kalvium Software Product Engineering Program.
+Licensed under internal organizational use.

@@ -2,8 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Sparkles, Zap, HardHat, Flame, Droplets } from 'lucide-react';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+import { api, API_BASE } from '@/lib/api';
 
 export const PROJECTS = [
   { id: 'skyline', name: 'Skyline Commercial Tower', phase: 'Phase 3 (Core & Shell)', location: 'Seattle, WA', code: 'IBC 2024 / NEC 2023' },
@@ -154,24 +153,14 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
     const stepTimer2 = setTimeout(() => setLoadingStep(3), 1400);
 
     try {
-      const response = await fetch(`${API_BASE}/api/verify-compliance`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: query.trim(),
-          trade,
-          jurisdiction,
-          document_type: docType,
-          top_k: searchThoroughness,
-        }),
+      const data = await api.verifyCompliance({
+        query: query.trim(),
+        trade,
+        jurisdiction,
+        document_type: docType,
+        top_k: searchThoroughness,
       });
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || `Compliance engine error (${response.status})`);
-      }
-
-      const data = await response.json();
       setResult(data);
       setActiveTab('summary');
 

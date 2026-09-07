@@ -1,6 +1,14 @@
 """
-Verification script for FastAPI compliance endpoints using FastAPI TestClient / httpx.
+Verification script for FastAPI compliance endpoints.
+Can be run standalone via `python test_api.py`.
 """
+
+import sys
+import os
+
+backend_root = os.path.dirname(os.path.abspath(__file__))
+if backend_root not in sys.path:
+    sys.path.insert(0, backend_root)
 
 from fastapi.testclient import TestClient
 from main import app
@@ -12,7 +20,7 @@ def test_health():
     response = client.get("/api/health")
     assert response.status_code == 200, f"Health failed: {response.text}"
     data = response.json()
-    print("[PASS] Health Check Passed:", data["service"], f"({data['indexed_documents']} indexed docs)")
+    print(f"[PASS] Health Check Passed: {data['service']} ({data['indexed_documents']} indexed docs)")
 
 
 def test_documents():
@@ -41,6 +49,7 @@ def test_non_compliant_plenum_pvc():
     print(f"Citations ({len(res['citations'])}): {[c['clause_number'] for c in res['citations']]}")
     assert res["verdict"] == "Non-Compliant", f"Expected Non-Compliant, got {res['verdict']}"
     assert len(res["citations"]) > 0, "Expected at least one citation"
+    print("[PASS] Test 1: Electrical Non-Compliant Passed")
 
 
 def test_compliant_concrete_psi():
@@ -59,6 +68,7 @@ def test_compliant_concrete_psi():
     print(f"Confidence: {res['confidence_score']}")
     print(f"Summary: {res['summary']}")
     assert res["verdict"] == "Compliant", f"Expected Compliant, got {res['verdict']}"
+    print("[PASS] Test 2: Structural Compliant Passed")
 
 
 def test_ambiguous_out_of_scope():
@@ -72,10 +82,11 @@ def test_ambiguous_out_of_scope():
     response = client.post("/api/verify-compliance", json=payload)
     assert response.status_code == 200, f"Verification failed: {response.text}"
     res = response.json()
-    print("\n--- Test 3: Out-of-Scope / Ambiguous Query ---")
+    print("\n--- Test 3: Out-of-Scope / Ambiguous Query (Safe Refusal) ---")
     print(f"Verdict: {res['verdict']}")
     print(f"Summary: {res['summary']}")
     assert res["verdict"] == "Ambiguous/Insufficient Data", f"Expected Ambiguous/Insufficient Data, got {res['verdict']}"
+    print("[PASS] Test 3: Safe Refusal Passed")
 
 
 if __name__ == "__main__":
@@ -85,4 +96,4 @@ if __name__ == "__main__":
     test_non_compliant_plenum_pvc()
     test_compliant_concrete_psi()
     test_ambiguous_out_of_scope()
-    print("\nALL TESTS PASSED SUCCESSFULLY!")
+    print("\nALL VERIFICATION TESTS PASSED SUCCESSFULLY!")
