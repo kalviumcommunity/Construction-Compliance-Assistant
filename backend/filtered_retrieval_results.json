@@ -1,0 +1,180 @@
+{
+  "query": "What are the fire safety requirements for construction site building codes?",
+  "unfiltered_results": [
+    {
+      "rank": 1,
+      "score": 0.165,
+      "point_id": "36b0a8be-455b-5af3-a33d-c048aca062a4",
+      "record_id": "doc_chunk_002",
+      "text": "ACI 318 Section 26.5.3: Cast-in-place concrete elements shall be maintained above 50\u00b0F (10\u00b0C) and kept continuously moist for at least 7 days after placement, or until 70 percent of specified compressive strength f'c is attained.",
+      "metadata": {
+        "source_doc": "Tower_B_Concrete_Specs.pdf",
+        "doc_type": "project_spec",
+        "section": "Section 26.5.3",
+        "page": 88,
+        "trade": "Structural",
+        "jurisdiction": "California",
+        "chunk_index": 1
+      }
+    },
+    {
+      "rank": 2,
+      "score": 0.1481,
+      "point_id": "061138cc-0ad7-542a-94a7-d1f367403693",
+      "record_id": "doc_chunk_005",
+      "text": "CBC Title 24 Chapter 11B: Accessible routes of travel within site boundaries shall maintain a minimum clear width of 48 inches for exterior walkways and continuous slopes not exceeding 1:20.",
+      "metadata": {
+        "source_doc": "CBC_2022_Title24.pdf",
+        "doc_type": "building_code",
+        "section": "Chapter 11B",
+        "page": 210,
+        "trade": "Fire Safety",
+        "jurisdiction": "California",
+        "chunk_index": 1
+      }
+    },
+    {
+      "rank": 3,
+      "score": -0.0119,
+      "point_id": "25060292-6114-5d39-aed2-9664b2e0f588",
+      "record_id": "doc_chunk_001",
+      "text": "IBC Section 705.8: Exterior wall openings shall comply with Table 705.8 based on fire separation distance. Projections extending beyond the exterior wall shall not extend beyond a point 1/3 the distance to the lot line.",
+      "metadata": {
+        "source_doc": "IBC_2021_Fire_Safety.pdf",
+        "doc_type": "building_code",
+        "section": "Section 705.8",
+        "page": 142,
+        "trade": "Fire Safety",
+        "jurisdiction": "National",
+        "chunk_index": 1
+      }
+    }
+  ],
+  "filtered_fire_safety": [
+    {
+      "rank": 1,
+      "score": 0.1481,
+      "point_id": "061138cc-0ad7-542a-94a7-d1f367403693",
+      "record_id": "doc_chunk_005",
+      "text": "CBC Title 24 Chapter 11B: Accessible routes of travel within site boundaries shall maintain a minimum clear width of 48 inches for exterior walkways and continuous slopes not exceeding 1:20.",
+      "metadata": {
+        "source_doc": "CBC_2022_Title24.pdf",
+        "doc_type": "building_code",
+        "section": "Chapter 11B",
+        "page": 210,
+        "trade": "Fire Safety",
+        "jurisdiction": "California",
+        "chunk_index": 1
+      }
+    },
+    {
+      "rank": 2,
+      "score": -0.0119,
+      "point_id": "25060292-6114-5d39-aed2-9664b2e0f588",
+      "record_id": "doc_chunk_001",
+      "text": "IBC Section 705.8: Exterior wall openings shall comply with Table 705.8 based on fire separation distance. Projections extending beyond the exterior wall shall not extend beyond a point 1/3 the distance to the lot line.",
+      "metadata": {
+        "source_doc": "IBC_2021_Fire_Safety.pdf",
+        "doc_type": "building_code",
+        "section": "Section 705.8",
+        "page": 142,
+        "trade": "Fire Safety",
+        "jurisdiction": "National",
+        "chunk_index": 1
+      }
+    }
+  ],
+  "filtered_california": [
+    {
+      "rank": 1,
+      "score": 0.165,
+      "point_id": "36b0a8be-455b-5af3-a33d-c048aca062a4",
+      "record_id": "doc_chunk_002",
+      "text": "ACI 318 Section 26.5.3: Cast-in-place concrete elements shall be maintained above 50\u00b0F (10\u00b0C) and kept continuously moist for at least 7 days after placement, or until 70 percent of specified compressive strength f'c is attained.",
+      "metadata": {
+        "source_doc": "Tower_B_Concrete_Specs.pdf",
+        "doc_type": "project_spec",
+        "section": "Section 26.5.3",
+        "page": 88,
+        "trade": "Structural",
+        "jurisdiction": "California",
+        "chunk_index": 1
+      }
+    },
+    {
+      "rank": 2,
+      "score": 0.1481,
+      "point_id": "061138cc-0ad7-542a-94a7-d1f367403693",
+      "record_id": "doc_chunk_005",
+      "text": "CBC Title 24 Chapter 11B: Accessible routes of travel within site boundaries shall maintain a minimum clear width of 48 inches for exterior walkways and continuous slopes not exceeding 1:20.",
+      "metadata": {
+        "source_doc": "CBC_2022_Title24.pdf",
+        "doc_type": "building_code",
+        "section": "Chapter 11B",
+        "page": 210,
+        "trade": "Fire Safety",
+        "jurisdiction": "California",
+        "chunk_index": 1
+      }
+    }
+  ],
+  "hybrid_results": [
+    {
+      "rank": 1,
+      "score": 0.2881,
+      "point_id": "25060292-6114-5d39-aed2-9664b2e0f588",
+      "record_id": "doc_chunk_001",
+      "text": "IBC Section 705.8: Exterior wall openings shall comply with Table 705.8 based on fire separation distance. Projections extending beyond the exterior wall shall not extend beyond a point 1/3 the distance to the lot line.",
+      "metadata": {
+        "source_doc": "IBC_2021_Fire_Safety.pdf",
+        "doc_type": "building_code",
+        "section": "Section 705.8",
+        "page": 142,
+        "trade": "Fire Safety",
+        "jurisdiction": "National",
+        "chunk_index": 1
+      },
+      "dense_score": -0.0119,
+      "keyword_matches": 1,
+      "hybrid_score": 0.2881
+    },
+    {
+      "rank": 2,
+      "score": 0.165,
+      "point_id": "36b0a8be-455b-5af3-a33d-c048aca062a4",
+      "record_id": "doc_chunk_002",
+      "text": "ACI 318 Section 26.5.3: Cast-in-place concrete elements shall be maintained above 50\u00b0F (10\u00b0C) and kept continuously moist for at least 7 days after placement, or until 70 percent of specified compressive strength f'c is attained.",
+      "metadata": {
+        "source_doc": "Tower_B_Concrete_Specs.pdf",
+        "doc_type": "project_spec",
+        "section": "Section 26.5.3",
+        "page": 88,
+        "trade": "Structural",
+        "jurisdiction": "California",
+        "chunk_index": 1
+      },
+      "dense_score": 0.165,
+      "keyword_matches": 0,
+      "hybrid_score": 0.165
+    },
+    {
+      "rank": 3,
+      "score": 0.1481,
+      "point_id": "061138cc-0ad7-542a-94a7-d1f367403693",
+      "record_id": "doc_chunk_005",
+      "text": "CBC Title 24 Chapter 11B: Accessible routes of travel within site boundaries shall maintain a minimum clear width of 48 inches for exterior walkways and continuous slopes not exceeding 1:20.",
+      "metadata": {
+        "source_doc": "CBC_2022_Title24.pdf",
+        "doc_type": "building_code",
+        "section": "Chapter 11B",
+        "page": 210,
+        "trade": "Fire Safety",
+        "jurisdiction": "California",
+        "chunk_index": 1
+      },
+      "dense_score": 0.1481,
+      "keyword_matches": 0,
+      "hybrid_score": 0.1481
+    }
+  ]
+}
