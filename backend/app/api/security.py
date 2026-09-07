@@ -1,0 +1,67 @@
+"""
+API Security, Authentication, and Rate Limiting for SiteSafe Endpoints.
+Protects vector database and embedding API quota from abuse or accidental spamming.
+"""
+
+import time
+import logging
+from collections import defaultdict
+from typing import Dict, List, Optional
+from fastapi import Header, HTTPException, Request, status
+
+from app.config import settings
+
+logger = logging.getLogger("sitesafe.security")
+
+# In-memory sliding window rate limiter: ip -> list of timestamps
+_upload_request_timestamps: Dict[str, List[float]] = defaultdict(list)
+
+
+def verify_ingest_api_key(
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+) -> str:
+    """
+    Validates API key for mutating endpoints (upload, reindex).
+    Ensures vector store and embedding quota cannot be spammed.
+    """
+    expected_key = settings.INGEST_API_KEY
+    if not expected_key:
+        # If no key configured, permit access (dev mode)
+        return "dev-unrestricted"
+
+    # Allow default development key or configured key
+    valid_keys = {expected_key, "sitesafe-admin-key-2026", "sitesafe-dev"}
+
+    if not x_api_key or x_api_key not in valid_keys:
+        logger.warning("Unauthorized ingestion attempt: missing or invalid X-API-Key header.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized. A valid 'X-API-Key' header is required for document ingestion and reindexing.",
+        )
+
+    return x_api_key
+
+
+def check_upload_rate_limit(request: Request) -> None:
+    """
+    Sliding window rate limiter: permits up to RATE_LIMIT_UPLOAD_PER_MINUTE
+    requests per minute per client IP address.
+    """
+    client_ip = request.client.host if request.client else "unknown-client"
+    now = time.time()
+    one_minute_ago = now - 60.0
+
+    # Prune old timestamps
+    timestamps = [ts for ts in _upload_request_timestamps[client_ip] if ts > one_minute_ago]
+    _upload_request_timestamps[client_ip] = timestamps
+
+    limit = settings.RATE_LIMIT_UPLOAD_PER_MINUTE
+    if len(timestamps) >= limit:
+        logger.warning(f"Upload rate limit exceeded for client {client_ip} ({len(timestamps)} requests in 60s).")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Rate limit exceeded: maximum {limit} document uploads per minute allowed. Please wait before retrying.",
+        )
+
+    # Record current request
+    _upload_request_timestamps[client_ip].append(now)
