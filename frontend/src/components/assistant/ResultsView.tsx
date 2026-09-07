@@ -1,16 +1,48 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ClipboardList, BookOpen, Layers, MessageSquareText, Printer, CheckCircle2, XCircle, HelpCircle, CheckSquare, FileText, MapPin, Check, Copy, ArrowRight } from 'lucide-react';
+import { ClipboardList, BookOpen, Layers, MessageSquareText, Printer, CheckCircle2, XCircle, HelpCircle, CheckSquare, FileText, MapPin, Check, Copy, ArrowRight, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAssistant } from './AssistantContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 export function ResultsView() {
-  const { result, loading, activeTab, setActiveTab, completedActions, toggleAction, setShowNoticeModal, setShowPrintModal } = useAssistant();
+  const { result, loading, error, handleSubmit, activeTab, setActiveTab, completedActions, toggleAction, setShowNoticeModal, setShowPrintModal } = useAssistant();
   const [copiedQuoteIdx, setCopiedQuoteIdx] = useState<number | null>(null);
 
-  if (loading || !result) return null;
+  if (loading) return null;
+
+  if (error) {
+    return (
+      <Card className="border-destructive/40 bg-destructive/5 p-6 space-y-4 my-6 shadow-md animate-in fade-in duration-300">
+        <div className="flex items-start gap-3.5">
+          <div className="p-2.5 rounded-xl bg-destructive/10 text-destructive shrink-0">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <div className="space-y-1 flex-1">
+            <h3 className="font-bold text-base text-foreground">Compliance Verification Error</h3>
+            <p className="text-xs text-muted-foreground">
+              The compliance engine encountered an error while verifying your query against the regulatory corpus.
+            </p>
+            <div className="mt-2 text-xs font-mono bg-background/80 border border-destructive/20 p-3 rounded-lg text-destructive/90 break-words">
+              {error}
+            </div>
+            <div className="text-[11px] text-muted-foreground pt-1">
+              Suggestions: Verify that the FastAPI backend server is running on <code className="text-foreground">127.0.0.1:8000</code>, check server logs, or retry with broader filters.
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-destructive/10">
+          <Button variant="outline" size="sm" onClick={() => handleSubmit()} className="gap-2">
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Retry Verification</span>
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
+  if (!result) return null;
 
   const copyToClipboard = (text: string, idx: number) => {
     navigator.clipboard.writeText(text);

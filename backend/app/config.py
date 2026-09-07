@@ -5,12 +5,19 @@ Configuration Settings for SiteSafe Construction Compliance Assistant.
 import os
 from typing import List
 from pathlib import Path
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=os.path.join(BASE_DIR, ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
     # App Settings
     BASE_DIR: str = str(BASE_DIR)
     APP_NAME: str = "SiteSafe Construction Compliance Assistant"
@@ -28,6 +35,13 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v):
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
     # Security & Rate Limiting
     INGEST_API_KEY: str = "sitesafe-admin-key-2026"
@@ -54,11 +68,6 @@ class Settings(BaseSettings):
     CHUNK_SIZE_TOKENS: int = 300
     CHUNK_OVERLAP_TOKENS: int = 50
     TIKTOKEN_ENCODING: str = "o200k_base"
-
-    class Config:
-        env_file = os.path.join(BASE_DIR, ".env")
-        env_file_encoding = "utf-8"
-        extra = "ignore"
 
 
 settings = Settings()

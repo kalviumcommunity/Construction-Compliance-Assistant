@@ -1,6 +1,7 @@
 import { Project, Document, QueryHistory, Inspection } from "@/types";
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+export const DEFAULT_INGEST_KEY = process.env.NEXT_PUBLIC_INGEST_API_KEY || "sitesafe-admin-key-2026";
 
 // ---------------------------------------------------------------------------
 // Construction Compliance RAG Types
@@ -183,36 +184,50 @@ export const api = {
     return await res.json();
   },
 
-  uploadDocument: async (file: File, apiKey = "sitesafe-admin-key-2026"): Promise<IngestResponse> => {
+  uploadDocument: async (file: File, apiKey = DEFAULT_INGEST_KEY): Promise<IngestResponse> => {
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch(`${API_BASE}/api/ingest/upload`, {
-      method: "POST",
-      headers: { "X-API-Key": apiKey },
-      body: formData,
-    });
+    try {
+      const res = await fetch(`${API_BASE}/api/ingest/upload`, {
+        method: "POST",
+        headers: { "X-API-Key": apiKey },
+        body: formData,
+      });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `Document ingestion failed (${res.status})`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Document ingestion failed (${res.status})`);
+      }
+
+      return await res.json();
+    } catch (err: any) {
+      if (err.message && err.message.includes("Failed to fetch")) {
+        throw new Error(`Cannot reach backend server at ${API_BASE}. Please verify that the FastAPI backend is running.`);
+      }
+      throw err;
     }
-
-    return await res.json();
   },
 
-  reindexCorpus: async (apiKey = "sitesafe-admin-key-2026"): Promise<IngestResponse> => {
-    const res = await fetch(`${API_BASE}/api/reindex`, {
-      method: "POST",
-      headers: { "X-API-Key": apiKey },
-    });
+  reindexCorpus: async (apiKey = DEFAULT_INGEST_KEY): Promise<IngestResponse> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/reindex`, {
+        method: "POST",
+        headers: { "X-API-Key": apiKey },
+      });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `Reindexing failed (${res.status})`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Reindexing failed (${res.status})`);
+      }
+
+      return await res.json();
+    } catch (err: any) {
+      if (err.message && err.message.includes("Failed to fetch")) {
+        throw new Error(`Cannot reach backend server at ${API_BASE}. Please verify that the FastAPI backend is running.`);
+      }
+      throw err;
     }
-
-    return await res.json();
   },
 
   getProjects: async (): Promise<Project[]> => {
