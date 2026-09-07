@@ -1,0 +1,26 @@
+{
+  "point_id": "23602bcb-d09d-53b8-81e8-a00369531eaa",
+  "record_id": "chunk_test_001",
+  "vector_length": 1536,
+  "vector_preview": [
+    -0.0438,
+    -0.035,
+    -0.0263,
+    -0.0175,
+    "...",
+    -0.0263,
+    -0.0175,
+    -0.0088,
+    0.0
+  ],
+  "text": "IBC 2021 Section 705.8: Exterior walls of Type V construction located less than 5 feet from the lot line shall have a minimum fire-resistance rating of 1 hour and must have 0% unprotected openings.",
+  "metadata": {
+    "source_doc": "IBC_2021_Fire_Safety.pdf",
+    "chunk_index": 1,
+    "doc_type": "building_code",
+    "section": "Section 705.8",
+    "page": 142,
+    "trade": "Fire Safety",
+    "jurisdiction": "National"
+  }
+}
