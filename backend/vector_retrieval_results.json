@@ -1,0 +1,103 @@
+{
+  "query": "IBC Section 705.8: Exterior wall openings fire separation distance.",
+  "k_2_results": [
+    {
+      "rank": 1,
+      "score": 0.6334,
+      "point_id": "061138cc-0ad7-542a-94a7-d1f367403693",
+      "record_id": "doc_chunk_005",
+      "text": "CBC Title 24 Chapter 11B: Accessible routes of travel within site boundaries shall maintain a minimum clear width of 48 inches for exterior walkways and continuous slopes not exceeding 1:20.",
+      "metadata": {
+        "source_doc": "CBC_2022_Title24.pdf",
+        "doc_type": "building_code",
+        "section": "Chapter 11B",
+        "page": 210,
+        "trade": "Fire Safety",
+        "jurisdiction": "California",
+        "chunk_index": 1
+      }
+    },
+    {
+      "rank": 2,
+      "score": 0.4343,
+      "point_id": "36b0a8be-455b-5af3-a33d-c048aca062a4",
+      "record_id": "doc_chunk_002",
+      "text": "ACI 318 Section 26.5.3: Cast-in-place concrete elements shall be maintained above 50\u00b0F (10\u00b0C) and kept continuously moist for at least 7 days after placement, or until 70 percent of specified compressive strength f'c is attained.",
+      "metadata": {
+        "source_doc": "Tower_B_Concrete_Specs.pdf",
+        "doc_type": "project_spec",
+        "section": "Section 26.5.3",
+        "page": 88,
+        "trade": "Structural",
+        "jurisdiction": "California",
+        "chunk_index": 1
+      }
+    }
+  ],
+  "k_4_results": [
+    {
+      "rank": 1,
+      "score": 0.6334,
+      "point_id": "061138cc-0ad7-542a-94a7-d1f367403693",
+      "record_id": "doc_chunk_005",
+      "text": "CBC Title 24 Chapter 11B: Accessible routes of travel within site boundaries shall maintain a minimum clear width of 48 inches for exterior walkways and continuous slopes not exceeding 1:20.",
+      "metadata": {
+        "source_doc": "CBC_2022_Title24.pdf",
+        "doc_type": "building_code",
+        "section": "Chapter 11B",
+        "page": 210,
+        "trade": "Fire Safety",
+        "jurisdiction": "California",
+        "chunk_index": 1
+      }
+    },
+    {
+      "rank": 2,
+      "score": 0.4343,
+      "point_id": "36b0a8be-455b-5af3-a33d-c048aca062a4",
+      "record_id": "doc_chunk_002",
+      "text": "ACI 318 Section 26.5.3: Cast-in-place concrete elements shall be maintained above 50\u00b0F (10\u00b0C) and kept continuously moist for at least 7 days after placement, or until 70 percent of specified compressive strength f'c is attained.",
+      "metadata": {
+        "source_doc": "Tower_B_Concrete_Specs.pdf",
+        "doc_type": "project_spec",
+        "section": "Section 26.5.3",
+        "page": 88,
+        "trade": "Structural",
+        "jurisdiction": "California",
+        "chunk_index": 1
+      }
+    },
+    {
+      "rank": 3,
+      "score": -0.2532,
+      "point_id": "6dae88df-cf87-5da9-93dd-7e6808a693d4",
+      "record_id": "doc_chunk_004",
+      "text": "IPC Section 604.4: Maximum flow rates and consumption for plumbing fixtures shall not exceed 1.6 gallons per flushing cycle for water closets and 0.5 gpm for public lavatory faucets.",
+      "metadata": {
+        "source_doc": "IPC_2021_Plumbing.pdf",
+        "doc_type": "building_code",
+        "section": "Section 604.4",
+        "page": 76,
+        "trade": "Plumbing",
+        "jurisdiction": "National",
+        "chunk_index": 1
+      }
+    },
+    {
+      "rank": 4,
+      "score": -0.2898,
+      "point_id": "76eb43b3-d351-5476-b85e-44672274b8a2",
+      "record_id": "doc_chunk_003",
+      "text": "OSHA 1926.404(b)(1)(ii): All 120-volt, single-phase 15- and 20-ampere receptacle outlets on construction sites that are not a part of the permanent wiring shall have approved ground-fault circuit-interrupters (GFCI) for personnel protection.",
+      "metadata": {
+        "source_doc": "OSHA_Construction_Electrical.pdf",
+        "doc_type": "building_code",
+        "section": "1926.404(b)(1)(ii)",
+        "page": 315,
+        "trade": "Electrical",
+        "jurisdiction": "National",
+        "chunk_index": 1
+      }
+    }
+  ]
+}
