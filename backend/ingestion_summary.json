@@ -1,0 +1,59 @@
+{
+  "timestamp": "2026-09-07 11:52:35",
+  "total_discovered_files": 5,
+  "extension_breakdown": {
+    ".txt": 1,
+    ".pdf": 2,
+    ".html": 1,
+    ".md": 1
+  },
+  "ingested_documents_count": 4,
+  "failed_documents_count": 1,
+  "ingestion_success_rate_pct": 80.0,
+  "total_chunks_generated": 4,
+  "token_metrics": {
+    "total_corpus_tokens": 209,
+    "avg_tokens_per_chunk": 52.25,
+    "min_chunk_tokens": 36,
+    "max_chunk_tokens": 86
+  },
+  "reconciliation_status": "VERIFIED: 100% Corpus Accounted For",
+  "ingested_documents": [
+    {
+      "file_path": "corpus/august_concrete_slump_log.txt",
+      "filename": "august_concrete_slump_log.txt",
+      "chunks_produced": 1,
+      "raw_char_count": 155,
+      "cleaned_char_count": 155
+    },
+    {
+      "file_path": "corpus/ibc_2021_fire_setbacks.pdf",
+      "filename": "ibc_2021_fire_setbacks.pdf",
+      "chunks_produced": 1,
+      "raw_char_count": 187,
+      "cleaned_char_count": 187
+    },
+    {
+      "file_path": "corpus/municipal_zoning_setback.html",
+      "filename": "municipal_zoning_setback.html",
+      "chunks_produced": 1,
+      "raw_char_count": 165,
+      "cleaned_char_count": 165
+    },
+    {
+      "file_path": "corpus/tower_b_structural_specs.md",
+      "filename": "tower_b_structural_specs.md",
+      "chunks_produced": 1,
+      "raw_char_count": 306,
+      "cleaned_char_count": 306
+    }
+  ],
+  "quarantine_log": [
+    {
+      "file_path": "corpus/corrupted_dummy_file.pdf",
+      "filename": "corrupted_dummy_file.pdf",
+      "error_reason": "Unable to extract page stream: Stream has ended unexpectedly",
+      "exception_type": "ValueError"
+    }
+  ]
+}
