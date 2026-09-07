@@ -1,5 +1,6 @@
 import React from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { AssistantProvider } from '@/components/assistant/AssistantContext';
 import { AssistantToolbar } from '@/components/assistant/AssistantToolbar';
 import { QueryForm } from '@/components/assistant/QueryForm';
@@ -17,13 +18,18 @@ export default function AssistantPage() {
         icon={Wrench}
       />
 
-      <AssistantProvider>
-        <AssistantToolbar />
-        <QueryForm />
-        <AssistantLoading />
-        <ResultsView />
-        <AssistantModals />
-      </AssistantProvider>
+      <ErrorBoundary
+        fallbackTitle="Compliance Assistant Unavailable"
+        fallbackMessage="An unexpected client rendering error occurred in the compliance assistant."
+      >
+        <AssistantProvider>
+          <AssistantToolbar />
+          <QueryForm />
+          <AssistantLoading />
+          <ResultsView />
+          <AssistantModals />
+        </AssistantProvider>
+      </ErrorBoundary>
     </div>
   );
 }

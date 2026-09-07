@@ -4,6 +4,7 @@ Protects vector database and embedding API quota from abuse or accidental spammi
 """
 
 import time
+import secrets
 import logging
 from collections import defaultdict
 from typing import Dict, List, Optional
@@ -22,17 +23,19 @@ def verify_ingest_api_key(
 ) -> str:
     """
     Validates API key for mutating endpoints (upload, reindex).
+    Uses constant-time comparison to prevent timing attacks.
     Ensures vector store and embedding quota cannot be spammed.
     """
     expected_key = settings.INGEST_API_KEY
     if not expected_key:
-        # If no key configured, permit access (dev mode)
-        return "dev-unrestricted"
+        # Strict mode: fail closed if no key is configured
+        logger.warning("Ingest endpoint rejected: INGEST_API_KEY is not configured on server.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server configuration error: Document ingestion key is not configured.",
+        )
 
-    # Allow default development key or configured key
-    valid_keys = {expected_key, "sitesafe-admin-key-2026", "sitesafe-dev"}
-
-    if not x_api_key or x_api_key not in valid_keys:
+    if not x_api_key or not secrets.compare_digest(x_api_key, expected_key):
         logger.warning("Unauthorized ingestion attempt: missing or invalid X-API-Key header.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
