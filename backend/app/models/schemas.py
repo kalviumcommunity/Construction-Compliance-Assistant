@@ -102,7 +102,9 @@ class SystemHealthResponse(BaseModel):
     vector_store: str
     collection_name: str
     indexed_documents: int
-    openai_configured: bool
+    openai_configured: bool = False
+    gemini_configured: bool = False
+    llm_provider: str = "rules"
     model: str
     trades: List[str]
     jurisdictions: List[str]

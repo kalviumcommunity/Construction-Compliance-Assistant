@@ -79,6 +79,8 @@ export interface SystemHealthResponse {
   collection_name: string;
   indexed_documents: number;
   openai_configured: boolean;
+  gemini_configured?: boolean;
+  llm_provider?: string;
   model: string;
   trades: string[];
   jurisdictions: string[];
