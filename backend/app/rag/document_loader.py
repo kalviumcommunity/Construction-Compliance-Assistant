@@ -12,6 +12,7 @@ from typing import List, Dict, Any, Optional, Tuple
 
 try:
     from pypdf import PdfReader
+    logging.getLogger("pypdf").setLevel(logging.ERROR)
 except ImportError:
     PdfReader = None
 

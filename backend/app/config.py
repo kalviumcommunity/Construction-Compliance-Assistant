@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     CORPUS_DIR: str = os.path.join(BASE_DIR, "corpus")
 
     # LLM & Embedding Settings
+    GEMINI_API_KEY: str = ""
+    GOOGLE_API_KEY: str = ""
+    GEMINI_MODEL_NAME: str = "gemini-3.6-flash"
+    GEMINI_EMBEDDING_MODEL: str = "models/text-embedding-004"
+    EMBEDDING_PROVIDER: str = "fastembed"  # "fastembed", "gemini", or "openai"
+
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     OPENAI_MODEL_NAME: str = "gpt-4o-mini"

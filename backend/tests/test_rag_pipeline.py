@@ -177,6 +177,18 @@ def test_health_endpoint():
     assert data["indexed_documents"] > 0
     assert "Electrical" in data["trades"]
     assert "Structural" in data["trades"]
+    assert "gemini_configured" in data
+    assert "openai_configured" in data
+    assert "llm_provider" in data
+    assert data["llm_provider"] in ["gemini", "openai", "rules"]
+
+
+def test_gemini_generator_initialization():
+    from app.rag.generator import ComplianceGenerator
+
+    generator = ComplianceGenerator()
+    assert hasattr(generator, "gemini_key")
+    assert hasattr(generator, "openai_key")
 
 
 def test_documents_endpoint():
@@ -441,6 +453,7 @@ if __name__ == "__main__":
         ("Table-Preserving Chunking (Never Splits Tables)", test_chunker_table_preservation),
         ("Metadata Tagging & Clause Extraction", test_metadata_tagger_clause_extraction),
         ("Health & Status Endpoint", test_health_endpoint),
+        ("Gemini Generator Initialization", test_gemini_generator_initialization),
         ("Knowledge Base Documents Endpoint", test_documents_endpoint),
         ("Electrical Trade (NEC 300.22 PVC in Plenum)", test_electrical_pvc_plenum_non_compliant),
         ("Structural Trade (Spec 03 30 00 Concrete PSI)", test_structural_concrete_psi_compliant),

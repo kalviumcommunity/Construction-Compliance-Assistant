@@ -15,36 +15,74 @@ from app.config import settings
 logger = logging.getLogger("sitesafe.embeddings")
 
 
+_cached_fastembed_dense = None
+_cached_fastembed_sparse = None
+
+
 def get_dense_embeddings_fn() -> Tuple[Callable[[List[str]], List[List[float]]], Callable[[str], List[float]], int]:
     """
     Returns (embed_documents_fn, embed_query_fn, dimension).
-    Prioritizes OpenAI text-embedding-3-small if key is active;
-    falls back to FastEmbed BAAI/bge-small-en-v1.5 (local ONNX);
-    falls back to deterministic normalized pseudo-vectors for offline CI.
+    Prioritizes configured EMBEDDING_PROVIDER:
+    - 'gemini': Google text-embedding-004 (768d)
+    - 'openai': OpenAI text-embedding-3-small (1536d)
+    - 'fastembed' (default): FastEmbed BAAI/bge-small-en-v1.5 (local ONNX, 384d)
+    Falls back to FastEmbed, then deterministic pseudo-vectors for offline CI.
     """
-    key = settings.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY", "")
-    if key and key.startswith("sk-") and not key.startswith("sk-placeholder"):
-        try:
-            from langchain_openai import OpenAIEmbeddings
+    global _cached_fastembed_dense
+    provider = (settings.EMBEDDING_PROVIDER or "fastembed").lower()
 
-            logger.info("Initializing OpenAI text-embedding-3-small dense embeddings...")
-            embeddings = OpenAIEmbeddings(
-                model=settings.OPENAI_EMBEDDING_MODEL,
-                openai_api_key=key,
-            )
-            return (
-                lambda texts: embeddings.embed_documents(texts),
-                lambda q: embeddings.embed_query(q),
-                1536,
-            )
-        except Exception as e:
-            logger.warning(f"OpenAIEmbeddings failed to initialize: {e}. Falling back to FastEmbed.")
+    # Optional Gemini dense embeddings
+    if provider == "gemini":
+        gemini_key = (
+            settings.GEMINI_API_KEY
+            or settings.GOOGLE_API_KEY
+            or os.getenv("GEMINI_API_KEY", "")
+            or os.getenv("GOOGLE_API_KEY", "")
+        )
+        if gemini_key and not gemini_key.startswith("your-") and not gemini_key.startswith("placeholder") and len(gemini_key.strip()) > 10:
+            try:
+                from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
+                logger.info(f"Initializing Google Gemini embeddings ({settings.GEMINI_EMBEDDING_MODEL}, dim 768)...")
+                gemini_embeddings = GoogleGenerativeAIEmbeddings(
+                    model=settings.GEMINI_EMBEDDING_MODEL,
+                    google_api_key=gemini_key,
+                )
+                return (
+                    lambda texts: gemini_embeddings.embed_documents(texts),
+                    lambda q: gemini_embeddings.embed_query(q),
+                    768,
+                )
+            except Exception as e:
+                logger.warning(f"GoogleGenerativeAIEmbeddings failed to initialize: {e}. Falling back to FastEmbed.")
+
+    # Optional OpenAI dense embeddings
+    if provider == "openai":
+        key = settings.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY", "")
+        if key and key.startswith("sk-") and not key.startswith("sk-placeholder"):
+            try:
+                from langchain_openai import OpenAIEmbeddings
+
+                logger.info("Initializing OpenAI text-embedding-3-small dense embeddings...")
+                embeddings = OpenAIEmbeddings(
+                    model=settings.OPENAI_EMBEDDING_MODEL,
+                    openai_api_key=key,
+                )
+                return (
+                    lambda texts: embeddings.embed_documents(texts),
+                    lambda q: embeddings.embed_query(q),
+                    1536,
+                )
+            except Exception as e:
+                logger.warning(f"OpenAIEmbeddings failed to initialize: {e}. Falling back to FastEmbed.")
 
     try:
         from fastembed import TextEmbedding
 
-        logger.info(f"Using local FastEmbed dense model ({settings.FASTEMBED_DENSE_MODEL}, dim 384)...")
-        model = TextEmbedding(model_name=settings.FASTEMBED_DENSE_MODEL)
+        if _cached_fastembed_dense is None:
+            logger.info(f"Using local FastEmbed dense model ({settings.FASTEMBED_DENSE_MODEL}, dim 384)...")
+            _cached_fastembed_dense = TextEmbedding(model_name=settings.FASTEMBED_DENSE_MODEL)
+        model = _cached_fastembed_dense
         return (
             lambda texts: [list(v) for v in model.embed(texts)],
             lambda q: list(list(model.embed([q]))[0]),
@@ -72,11 +110,14 @@ def get_sparse_embeddings_fn() -> Tuple[Callable[[List[str]], List[Any]], Callab
     Returns (embed_documents_sparse_fn, embed_query_sparse_fn).
     Uses FastEmbed BM25 sparse model with term-frequency fallback.
     """
+    global _cached_fastembed_sparse
     try:
         from fastembed import SparseTextEmbedding
 
-        logger.info(f"Using FastEmbed BM25 sparse model ({settings.FASTEMBED_SPARSE_MODEL})...")
-        model = SparseTextEmbedding(model_name=settings.FASTEMBED_SPARSE_MODEL)
+        if _cached_fastembed_sparse is None:
+            logger.info(f"Using FastEmbed BM25 sparse model ({settings.FASTEMBED_SPARSE_MODEL})...")
+            _cached_fastembed_sparse = SparseTextEmbedding(model_name=settings.FASTEMBED_SPARSE_MODEL)
+        model = _cached_fastembed_sparse
         return (
             lambda texts: list(model.embed(texts)),
             lambda q: list(model.embed([q]))[0],

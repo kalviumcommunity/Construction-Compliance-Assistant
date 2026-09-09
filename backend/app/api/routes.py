@@ -41,11 +41,35 @@ ALLOWED_MIME_TYPES = {
 async def get_system_health():
     """Health status, vector database metrics, and active trade taxonomy."""
     total_docs = rag_pipeline.vector_store.count()
-    has_key = bool(
-        settings.OPENAI_API_KEY
-        and settings.OPENAI_API_KEY.startswith("sk-")
-        and not settings.OPENAI_API_KEY.startswith("sk-placeholder")
+    gemini_key = (
+        settings.GEMINI_API_KEY
+        or settings.GOOGLE_API_KEY
+        or os.getenv("GEMINI_API_KEY", "")
+        or os.getenv("GOOGLE_API_KEY", "")
     )
+    has_gemini = bool(
+        gemini_key
+        and not gemini_key.startswith("your-")
+        and not gemini_key.startswith("placeholder")
+        and len(gemini_key.strip()) > 10
+    )
+
+    openai_key = settings.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY", "")
+    has_openai = bool(
+        openai_key
+        and openai_key.startswith("sk-")
+        and not openai_key.startswith("sk-placeholder")
+    )
+
+    if has_gemini:
+        provider = "gemini"
+        active_model = settings.GEMINI_MODEL_NAME
+    elif has_openai:
+        provider = "openai"
+        active_model = settings.OPENAI_MODEL_NAME
+    else:
+        provider = "rules"
+        active_model = "expert-rule-engine-fallback"
 
     return SystemHealthResponse(
         status="healthy",
@@ -53,8 +77,10 @@ async def get_system_health():
         vector_store="Qdrant Hybrid (Dense + BM25 Sparse RRF)",
         collection_name=settings.QDRANT_COLLECTION,
         indexed_documents=total_docs or len(rag_pipeline.get_document_summaries()),
-        openai_configured=has_key,
-        model=settings.OPENAI_MODEL_NAME if has_key else "expert-rule-engine-fallback",
+        openai_configured=has_openai,
+        gemini_configured=has_gemini,
+        llm_provider=provider,
+        model=active_model,
         trades=["Structural", "Fire Safety", "Electrical", "Plumbing"],
         jurisdictions=["National", "California", "NYC"],
         document_types=["Code", "Project Spec", "Inspection Log"],
