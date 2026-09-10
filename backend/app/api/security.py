@@ -68,3 +68,33 @@ def check_upload_rate_limit(request: Request) -> None:
 
     # Record current request
     _upload_request_timestamps[client_ip].append(now)
+
+
+# In-memory sliding window rate limiter for compliance verification: ip -> list of timestamps
+_verify_request_timestamps: Dict[str, List[float]] = defaultdict(list)
+
+
+def check_verify_rate_limit(request: Request) -> None:
+    """
+    Sliding window rate limiter: permits up to RATE_LIMIT_VERIFY_PER_MINUTE
+    requests per minute per client IP address.
+    """
+    client_ip = request.client.host if request.client else "unknown-client"
+    now = time.time()
+    one_minute_ago = now - 60.0
+
+    # Prune old timestamps
+    timestamps = [ts for ts in _verify_request_timestamps[client_ip] if ts > one_minute_ago]
+    _verify_request_timestamps[client_ip] = timestamps
+
+    limit = settings.RATE_LIMIT_VERIFY_PER_MINUTE
+    if len(timestamps) >= limit:
+        logger.warning(f"Verify rate limit exceeded for client {client_ip} ({len(timestamps)} requests in 60s).")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Compliance verification rate limit exceeded: maximum {limit} requests per minute allowed. Please wait before retrying.",
+        )
+
+    # Record current request
+    _verify_request_timestamps[client_ip].append(now)
+

@@ -56,11 +56,15 @@ export default function DocumentsPage() {
     }
   };
 
-  const filteredDocs = documents.filter((doc) => {
+  const filteredDocs = (documents || []).filter((doc) => {
+    const title = doc.title || '';
+    const clause = doc.clause_number || '';
+    const snippet = doc.summary_snippet || '';
+    const query = searchQuery.toLowerCase();
     const matchesSearch =
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.clause_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.summary_snippet.toLowerCase().includes(searchQuery.toLowerCase());
+      title.toLowerCase().includes(query) ||
+      clause.toLowerCase().includes(query) ||
+      snippet.toLowerCase().includes(query);
     const matchesTrade = selectedTrade === 'All' || doc.trade === selectedTrade;
     const matchesType = selectedType === 'All' || doc.document_type === selectedType;
     return matchesSearch && matchesTrade && matchesType;
@@ -70,7 +74,7 @@ export default function DocumentsPage() {
   const types = ['All', 'Code', 'Project Spec', 'Inspection Log'];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="w-full space-y-8 animate-fade-up">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <PageHeader
           title="Document Knowledge Base"

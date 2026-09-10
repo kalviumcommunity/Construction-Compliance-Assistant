@@ -107,7 +107,7 @@ export default function EvaluationPage() {
   const successRate = runCompleted ? Math.round((passedCount / totalCount) * 100) : 100;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="w-full space-y-8 animate-fade-up">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <PageHeader
           title="RAG Evaluation & Quality Assurance"

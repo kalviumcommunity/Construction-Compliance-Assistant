@@ -2,6 +2,9 @@ import re
 import os
 import logging
 from typing import List
+import json
+import random
+import time
 from app.config import settings
 from app.models.schemas import (
     LLMComplianceOutput,
@@ -71,6 +74,25 @@ class ComplianceGenerator:
                 ],
             )
 
+        # Guardrail 2: Deterministic Safe Refusal when zero context is retrieved
+        if not chunks:
+            logger.info(f"Safe refusal triggered for ungrounded query: '{query[:80]}...' (0 chunks retrieved)")
+            return LLMComplianceOutput(
+                verdict=ComplianceVerdict.INSUFFICIENT_DATA,
+                confidence_score=0.98,
+                summary="Ambiguous / Insufficient Data: No authoritative building codes or project specifications found matching this query in the corpus.",
+                technical_analysis=(
+                    f"A hybrid semantic and keyword search for '{query}' returned zero matching regulatory passages. "
+                    "Without governing statutory code or specification references, the system strictly refuses to speculate or issue an ungrounded determination."
+                ),
+                citations=[],
+                recommended_actions=[
+                    "Broaden trade and jurisdiction filters to 'All'.",
+                    "Verify if project-specific submittals or architect directives govern this condition.",
+                    "Submit an official Request for Information (RFI) to the Structural/MEP Engineer of Record.",
+                ],
+            )
+
         has_gemini = bool(
             self.gemini_key
             and not self.gemini_key.startswith("your-")
@@ -84,15 +106,24 @@ class ComplianceGenerator:
         )
 
         if has_gemini or has_openai:
+            # Enforce exact context-window token limits (budget ~4000 tokens / 16,000 chars)
+            MAX_CONTEXT_CHARS = 16000
+            current_chars = 0
             context_blocks = []
             for i, c in enumerate(chunks):
-                context_blocks.append(
+                block = (
                     f"--- EXCERPT {i+1} ---\n"
                     f"Document: {c.doc_title}\n"
                     f"Clause: {c.clause_number} | Section: {c.page_or_section}\n"
                     f"Trade: {c.trade} | Jurisdiction: {c.jurisdiction} | Type: {c.document_type}\n"
                     f"Content:\n{c.text}"
                 )
+                if current_chars + len(block) > MAX_CONTEXT_CHARS:
+                    logger.info(f"Context budgeting: truncated retrieved chunks at index {i} to stay within token window.")
+                    break
+                context_blocks.append(block)
+                current_chars += len(block)
+
             context_str = "\n\n".join(context_blocks)
 
             system_prompt = (
@@ -102,8 +133,9 @@ class ComplianceGenerator:
                 "### MANDATORY GROUNDING & SAFE REFUSAL RULES:\n"
                 "1. Base your evaluation EXCLUSIVELY on the provided authoritative excerpts.\n"
                 "2. If the context does not contain clear, governing rules or required dimensions to evaluate the observation, "
-                "you MUST set verdict = 'Ambiguous/Insufficient Data', explain exactly what parameters or engineering submittals are missing, "
-                "and recommend submitting an RFI (Request for Information).\n"
+                "you MUST set verdict = 'Ambiguous/Insufficient Data', start the summary with 'Ambiguous / Insufficient Data:', "
+                "state in the technical analysis that the system strictly refuses to speculate without governing statutory codes, "
+                "explain exactly what parameters or engineering submittals are missing, and recommend submitting an RFI (Request for Information).\n"
                 "3. If the observed condition directly violates a clear prohibition or criterion in the context, set verdict = 'Non-Compliant'.\n"
                 "4. If the observed condition fully satisfies all requirements in the context, set verdict = 'Compliant'.\n"
                 "5. In the 'citations' array, provide EXACT VERBATIM quotes from the excerpts for every cited requirement.\n"
@@ -116,50 +148,75 @@ class ComplianceGenerator:
             )
 
             sanitized_query = query.replace("<", "&lt;").replace(">", "&gt;")
-            user_prompt = (
+            full_user_content = (
                 "UNTRUSTED FIELD OBSERVATION:\n"
-                "<untrusted_field_observation>\n{query}\n</untrusted_field_observation>\n\n"
-                "AUTHORITATIVE RETRIEVED EXCERPTS:\n{context}\n\n"
+                f"<untrusted_field_observation>\n{sanitized_query}\n</untrusted_field_observation>\n\n"
+                f"AUTHORITATIVE RETRIEVED EXCERPTS:\n{context_str}\n\n"
                 "Provide the structured compliance determination strictly adhering to the grounding and security rules."
             )
 
-            # Prioritize Gemini if configured
+            # Prioritize official Google GenAI GA SDK if configured
             if has_gemini:
                 try:
-                    from langchain_google_genai import ChatGoogleGenerativeAI
-                    from langchain_core.prompts import ChatPromptTemplate
+                    from google import genai
+                    from google.genai import types
 
-                    candidate_models = [settings.GEMINI_MODEL_NAME]
-                    for fallback_model in ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-flash-latest"]:
-                        if fallback_model not in candidate_models:
-                            candidate_models.append(fallback_model)
+                    # Strictly ensure GEMINI_API_KEY is available in os.environ
+                    if self.gemini_key:
+                        os.environ["GEMINI_API_KEY"] = self.gemini_key
 
-                    for model_name in candidate_models:
-                        try:
-                            logger.info(f"Synthesizing compliance verdict using Google Gemini ({model_name})...")
-                            llm = ChatGoogleGenerativeAI(
-                                model=model_name,
-                                google_api_key=self.gemini_key,
-                            )
-                            structured_llm = llm.with_structured_output(LLMComplianceOutput)
+                    client = genai.Client()
 
-                            prompt = ChatPromptTemplate.from_messages([
-                                ("system", system_prompt),
-                                ("user", user_prompt),
-                            ])
+                    candidate_models = [
+                        settings.GEMINI_MODEL_NAME,
+                        "gemini-2.5-flash",
+                        "gemini-2.0-flash",
+                        "gemini-3.6-flash",
+                        "gemini-flash-latest",
+                    ]
+                    unique_models = []
+                    for m in candidate_models:
+                        if m and m not in unique_models:
+                            unique_models.append(m)
 
-                            chain = prompt | structured_llm
-                            result = chain.invoke({"query": sanitized_query, "context": context_str})
-                            if isinstance(result, LLMComplianceOutput):
-                                return result
-                        except Exception as model_err:
-                            err_str = str(model_err)
-                            if "404" in err_str or "NOT_FOUND" in err_str or "not found" in err_str.lower():
-                                logger.warning(f"Gemini model '{model_name}' not available ({model_err}). Trying fallback candidate...")
-                                continue
-                            raise model_err
+                    for model_name in unique_models:
+                        max_retries = 3
+                        model_succeeded = False
+                        for attempt in range(max_retries):
+                            try:
+                                logger.info(
+                                    f"Synthesizing compliance verdict using Google GenAI GA SDK ({model_name}, attempt {attempt+1}/{max_retries})..."
+                                )
+                                cfg = types.GenerateContentConfig(
+                                    system_instruction=system_prompt,
+                                    response_mime_type="application/json",
+                                    response_schema=LLMComplianceOutput,
+                                    temperature=0.0,
+                                )
+                                response = client.models.generate_content(
+                                    model=model_name,
+                                    contents=full_user_content,
+                                    config=cfg,
+                                )
+                                if response and response.text:
+                                    parsed_data = json.loads(response.text)
+                                    res = LLMComplianceOutput(**parsed_data)
+                                    return res
+                            except Exception as attempt_err:
+                                err_str = str(attempt_err).lower()
+                                if "404" in err_str or "not_found" in err_str or "not found" in err_str:
+                                    logger.warning(f"Gemini model '{model_name}' not found ({attempt_err}). Trying fallback candidate...")
+                                    break  # Try next candidate model
+                                if attempt < max_retries - 1:
+                                    backoff = (2 ** attempt) + random.uniform(0.1, 0.4)
+                                    logger.warning(
+                                        f"Gemini attempt {attempt+1} encountered transient error ({attempt_err}). Backing off {backoff:.2f}s..."
+                                    )
+                                    time.sleep(backoff)
+                                else:
+                                    logger.warning(f"Gemini model '{model_name}' failed after {max_retries} attempts: {attempt_err}")
                 except Exception as e:
-                    logger.warning(f"Google Gemini LLM synthesis error: {e}. Falling back to next available engine.")
+                    logger.warning(f"Google GenAI GA SDK synthesis encountered error: {e}. Falling back to next available engine.")
 
             # Prioritize OpenAI next if configured
             if has_openai:
@@ -177,7 +234,7 @@ class ComplianceGenerator:
 
                     prompt = ChatPromptTemplate.from_messages([
                         ("system", system_prompt),
-                        ("user", user_prompt),
+                        ("user", "UNTRUSTED FIELD OBSERVATION:\n<untrusted_field_observation>\n{query}\n</untrusted_field_observation>\n\nAUTHORITATIVE RETRIEVED EXCERPTS:\n{context}\n\nProvide the structured compliance determination strictly adhering to the grounding and security rules."),
                     ])
 
                     chain = prompt | structured_llm

@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     # Security & Rate Limiting
     INGEST_API_KEY: str = "sitesafe-admin-key-2026"
     RATE_LIMIT_UPLOAD_PER_MINUTE: int = 15
+    RATE_LIMIT_VERIFY_PER_MINUTE: int = 60
 
     # Storage & Vector DB
     QDRANT_COLLECTION: str = "construction_compliance"

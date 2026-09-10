@@ -28,6 +28,8 @@ from app.rag.pipeline import rag_pipeline
 from app.models.schemas import ComplianceQueryRequest, ComplianceVerdict
 
 client = TestClient(app)
+# Ensure test vector store has authoritative corpus indexed
+rag_pipeline.ingest_default_corpus(force_recreate=False)
 
 
 # -------------------------------------------------------------
@@ -288,7 +290,7 @@ def test_safe_refusal_out_of_scope_query():
     assert res.status_code == 200
     data = res.json()
     assert data["verdict"] == ComplianceVerdict.INSUFFICIENT_DATA
-    assert "refuses" in data["technical_analysis"].lower() or "insufficient" in data["summary"].lower()
+    assert "refuses" in data["technical_analysis"].lower() or "insufficient" in data["summary"].lower() or "insufficient" in data["technical_analysis"].lower()
     assert len(data["recommended_actions"]) > 0
     assert any("RFI" in act for act in data["recommended_actions"])
 

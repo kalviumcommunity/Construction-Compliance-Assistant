@@ -279,7 +279,7 @@ export function ResultsView() {
                 <Card key={idx} className="p-5 hover:border-primary/50 transition-all space-y-3.5 shadow-sm">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
                     <div className="flex items-center gap-2.5">
-                      <span className="px-3 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-xs font-bold font-mono">
+                      <span className="clause-badge">
                         {cite.clause_number}
                       </span>
                       <span className="text-sm font-bold">
@@ -349,7 +349,7 @@ export function ResultsView() {
                     <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[11px] font-bold">
                       {idx + 1}
                     </span>
-                    <span className="text-xs font-bold font-mono">{chunk.clause_number}</span>
+                    <span className="clause-badge">{chunk.clause_number}</span>
                     <span className="text-xs text-muted-foreground">({chunk.doc_title})</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs">

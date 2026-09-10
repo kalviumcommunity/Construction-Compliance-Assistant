@@ -50,7 +50,7 @@ export default function SearchPage() {
   ];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="w-full space-y-8 animate-fade-up">
       <PageHeader
         title="RAG Search Explorer"
         description="Inspect dense semantic matching, BM25 sparse keyword retrieval, and Reciprocal Rank Fusion (RRF) across Qdrant."
