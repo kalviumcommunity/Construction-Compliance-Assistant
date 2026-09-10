@@ -41,20 +41,32 @@ def get_dense_embeddings_fn() -> Tuple[Callable[[List[str]], List[List[float]]],
         )
         if gemini_key and not gemini_key.startswith("your-") and not gemini_key.startswith("placeholder") and len(gemini_key.strip()) > 10:
             try:
-                from langchain_google_genai import GoogleGenerativeAIEmbeddings
+                from google import genai
+                from google.genai import types
 
-                logger.info(f"Initializing Google Gemini embeddings ({settings.GEMINI_EMBEDDING_MODEL}, dim 768)...")
-                gemini_embeddings = GoogleGenerativeAIEmbeddings(
-                    model=settings.GEMINI_EMBEDDING_MODEL,
-                    google_api_key=gemini_key,
-                )
-                return (
-                    lambda texts: gemini_embeddings.embed_documents(texts),
-                    lambda q: gemini_embeddings.embed_query(q),
-                    768,
-                )
+                if gemini_key:
+                    os.environ["GEMINI_API_KEY"] = gemini_key
+
+                client = genai.Client()
+                logger.info(f"Initializing Google Gemini GA SDK embeddings ({settings.GEMINI_EMBEDDING_MODEL}, dim 768)...")
+
+                def embed_texts(texts: List[str]) -> List[List[float]]:
+                    res = client.models.embed_content(
+                        model=settings.GEMINI_EMBEDDING_MODEL,
+                        contents=texts,
+                    )
+                    return [list(e.values) for e in res.embeddings]
+
+                def embed_query(q: str) -> List[float]:
+                    res = client.models.embed_content(
+                        model=settings.GEMINI_EMBEDDING_MODEL,
+                        contents=q,
+                    )
+                    return list(res.embeddings[0].values)
+
+                return (embed_texts, embed_query, 768)
             except Exception as e:
-                logger.warning(f"GoogleGenerativeAIEmbeddings failed to initialize: {e}. Falling back to FastEmbed.")
+                logger.warning(f"Google GenAI SDK embeddings failed to initialize: {e}. Falling back to FastEmbed.")
 
     # Optional OpenAI dense embeddings
     if provider == "openai":

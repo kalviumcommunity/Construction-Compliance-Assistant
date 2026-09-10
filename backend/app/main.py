@@ -6,7 +6,7 @@ import sys
 import os
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 # Ensure backend root is on sys.path
@@ -64,6 +64,57 @@ app.add_middleware(
 
 # Register API routes
 app.include_router(router)
+
+# Structured JSON Exception Handlers for Production DevSecOps
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from datetime import datetime, timezone
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc: HTTPException):
+    """Uniform structured JSON response for HTTP exceptions."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": True,
+            "status_code": exc.status_code,
+            "message": exc.detail if isinstance(exc.detail, str) else "HTTP Exception",
+            "detail": exc.detail,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc: RequestValidationError):
+    """Uniform structured JSON response for request validation failures."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": True,
+            "status_code": 422,
+            "message": "Input validation error: The request body does not conform to required schema.",
+            "detail": exc.errors(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request, exc: Exception):
+    """Uniform structured JSON response for unhandled server exceptions preventing HTML/Traceback leaks."""
+    logger.error(f"Unhandled server exception on {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": True,
+            "status_code": 500,
+            "message": "SiteSafe compliance service temporarily encountered an internal error. Diagnostic telemetry has been logged.",
+            "detail": "Internal Server Error",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
 
 
 if __name__ == "__main__":

@@ -146,3 +146,47 @@ class TaggedChunk(BaseModel):
     chunk_id: str
     content: str
     metadata: ChunkMetadata
+
+
+# Dynamic Dashboard & Enterprise Models
+class QueryHistoryItem(BaseModel):
+    id: str
+    query: str
+    trade: str = "General"
+    verdict: str
+    confidence: int = 95
+    date: str
+    sources_count: int = 0
+    project_id: Optional[str] = None
+
+
+class ProjectSummary(BaseModel):
+    id: str
+    name: str
+    location: str
+    status: str
+    document_count: int
+    last_updated: str
+    compliance_score: int = 96
+    active_codes: List[str] = []
+
+
+class InspectionFinding(BaseModel):
+    id: str
+    project_id: str
+    date: str
+    inspector: str
+    status: str
+    findings_count: int
+    trade: str = "General"
+    description: str = ""
+    clause_reference: str = ""
+
+
+class StructuredErrorResponse(BaseModel):
+    error: bool = True
+    status_code: int
+    message: str
+    detail: Optional[Any] = None
+    timestamp: Optional[str] = None
+

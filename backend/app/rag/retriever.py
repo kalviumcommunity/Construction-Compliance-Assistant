@@ -119,7 +119,7 @@ class HybridRetriever:
                     collection_name=collection,
                     query=dense_vec,
                     using="dense",
-                    filter=query_filter,
+                    query_filter=query_filter,
                     limit=top_k,
                     with_payload=True,
                 )

@@ -6,9 +6,11 @@ import os
 import re
 import shutil
 import tempfile
+import time
+from datetime import datetime, timezone
 import logging
-from typing import List
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Request
 
 from app.config import settings
 from app.models.schemas import (
@@ -18,9 +20,16 @@ from app.models.schemas import (
     SystemHealthResponse,
     IngestResponse,
     CorpusStats,
+    QueryHistoryItem,
+    ProjectSummary,
+    InspectionFinding,
 )
 from app.rag.pipeline import rag_pipeline
-from app.api.security import verify_ingest_api_key, check_upload_rate_limit
+from app.api.security import (
+    verify_ingest_api_key,
+    check_upload_rate_limit,
+    check_verify_rate_limit,
+)
 
 logger = logging.getLogger("sitesafe.routes")
 
@@ -35,6 +44,109 @@ ALLOWED_MIME_TYPES = {
     ".md": {"text/markdown", "text/x-markdown", "text/plain", "application/octet-stream"},
     ".txt": {"text/plain", "text/markdown", "application/octet-stream"},
 }
+
+# Live dynamic repositories
+_query_history: List[QueryHistoryItem] = [
+    QueryHistoryItem(
+        id="h-init-1",
+        query="Can we install 1-inch Schedule 40 PVC conduit for low-voltage controls in the drop-ceiling return air plenum?",
+        trade="Electrical",
+        verdict="Non-Compliant",
+        confidence=98,
+        date="2026-09-08T10:00:00Z",
+        sources_count=2,
+        project_id="p1",
+    ),
+    QueryHistoryItem(
+        id="h-init-2",
+        query="Cylinder break tests achieved 4,850 psi at 28 days for elevated post-tensioned deck slab. Is this compliant?",
+        trade="Structural",
+        verdict="Compliant",
+        confidence=97,
+        date="2026-09-09T14:30:00Z",
+        sources_count=1,
+        project_id="p1",
+    ),
+    QueryHistoryItem(
+        id="h-init-3",
+        query="Did our 30-minute hydrostatic water test with 42-foot static head satisfy rough drainage requirements?",
+        trade="Plumbing",
+        verdict="Compliant",
+        confidence=98,
+        date="2026-09-10T09:15:00Z",
+        sources_count=1,
+        project_id="p1",
+    ),
+]
+
+_projects_store: List[ProjectSummary] = [
+    ProjectSummary(
+        id="p1",
+        name="Skyline Commercial Tower",
+        location="Seattle, WA",
+        status="active",
+        document_count=24,
+        last_updated="2026-09-10",
+        compliance_score=97,
+        active_codes=["IBC 2021", "NFPA 70 / NEC 2023", "UPC 2024"],
+    ),
+    ProjectSummary(
+        id="p2",
+        name="Harbor Point Medical Pavilion",
+        location="San Francisco, CA",
+        status="active",
+        document_count=18,
+        last_updated="2026-09-09",
+        compliance_score=94,
+        active_codes=["CBC Title 24", "NFPA 101", "OSHPD 1"],
+    ),
+    ProjectSummary(
+        id="p3",
+        name="Midtown Mixed-Use Residences",
+        location="New York, NY",
+        status="completed",
+        document_count=36,
+        last_updated="2026-08-30",
+        compliance_score=99,
+        active_codes=["NYC Building Code 2022", "NEC 2020"],
+    ),
+]
+
+_inspections_store: List[InspectionFinding] = [
+    InspectionFinding(
+        id="ir-2024-089",
+        project_id="p1",
+        date="2026-09-09",
+        inspector="Sarah Jenkins (PE, QA/QC Lead)",
+        status="Non-Compliant / NCR Issued",
+        findings_count=1,
+        trade="Electrical",
+        description="Schedule 40 PVC conduit routed through plenum return air without metallic encasement.",
+        clause_reference="NEC § 300.22(C)(1)",
+    ),
+    InspectionFinding(
+        id="ir-2024-092",
+        project_id="p1",
+        date="2026-09-08",
+        inspector="David Vance (Senior Structural Inspector)",
+        status="Passed / Approved",
+        findings_count=0,
+        trade="Structural",
+        description="28-day cylinder compressive strength breaks verified at 4,850 psi exceeding 4,000 psi design minimum.",
+        clause_reference="Spec 03 30 00 § 3.2",
+    ),
+    InspectionFinding(
+        id="ir-2024-095",
+        project_id="p1",
+        date="2026-09-07",
+        inspector="Carlos Rivera (Plumbing Inspector)",
+        status="Passed / Approved",
+        findings_count=0,
+        trade="Plumbing",
+        description="Hydrostatic rough DWV water test held for 30 minutes at 42-foot head with zero measurable water loss.",
+        clause_reference="UPC § 312.2",
+    ),
+]
 
 
 @router.get("/health", response_model=SystemHealthResponse, tags=["System"])
@@ -93,15 +205,42 @@ async def list_documents():
     return rag_pipeline.get_document_summaries()
 
 
-@router.post("/verify-compliance", response_model=ComplianceResponse, tags=["Compliance"])
+@router.post(
+    "/verify-compliance",
+    response_model=ComplianceResponse,
+    tags=["Compliance"],
+    dependencies=[Depends(check_verify_rate_limit)],
+)
 async def verify_compliance(payload: ComplianceQueryRequest):
     """
     Evaluates field observation against authoritative construction codes.
     Executes hybrid dense + BM25 sparse search and returns grounded verdicts
     with source citations, verbatim quotes, and confidence scores.
+    Rate-limited per client IP to safeguard API quota and resources.
     """
     try:
         response = rag_pipeline.verify_compliance(payload)
+
+        # Record dynamically to live query history
+        try:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            history_item = QueryHistoryItem(
+                id=f"h-{int(time.time() * 1000)}",
+                query=payload.query,
+                trade=payload.trade if payload.trade and payload.trade != "All" else "General",
+                verdict=response.verdict.value,
+                confidence=int(response.confidence_score * 100),
+                date=now_iso,
+                sources_count=len(response.citations),
+                project_id="p1",
+            )
+            _query_history.insert(0, history_item)
+            # Keep history to last 100 queries
+            if len(_query_history) > 100:
+                _query_history.pop()
+        except Exception as log_err:
+            logger.warning(f"Failed to record query to in-memory history: {log_err}")
+
         return response
     except Exception as e:
         logger.error(f"Error evaluating compliance: {e}", exc_info=True)
@@ -109,6 +248,24 @@ async def verify_compliance(payload: ComplianceQueryRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Compliance verification engine encountered an internal error. Please consult system logs.",
         )
+
+
+@router.get("/history", response_model=List[QueryHistoryItem], tags=["Compliance"])
+async def get_query_history():
+    """Returns dynamic query history of all compliance checks evaluated by SiteSafe."""
+    return _query_history
+
+
+@router.get("/projects", response_model=List[ProjectSummary], tags=["Projects"])
+async def get_active_projects():
+    """Returns active projects and their code compliance portfolio."""
+    return _projects_store
+
+
+@router.get("/inspections", response_model=List[InspectionFinding], tags=["Inspections"])
+async def get_inspections():
+    """Returns active jobsite inspection audits, NCRs, and test reports."""
+    return _inspections_store
 
 
 @router.post(

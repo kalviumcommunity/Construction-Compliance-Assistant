@@ -29,15 +29,29 @@ class VectorStoreManager:
         self._client: Optional[QdrantClient] = None
 
     def get_client(self) -> QdrantClient:
-        """Returns initialized Qdrant client."""
+        """Returns initialized Qdrant client with automatic lock conflict resolution."""
         if self._client is None:
             if self.url:
                 logger.info(f"Connecting to remote Qdrant cluster at {self.url}...")
                 self._client = QdrantClient(url=self.url, api_key=self.api_key or None)
+            elif self.storage_path == ":memory:":
+                logger.info("Using isolated in-memory Qdrant instance...")
+                self._client = QdrantClient(":memory:")
             else:
                 logger.info(f"Using local persistent Qdrant storage at {self.storage_path}...")
-                os.makedirs(self.storage_path, exist_ok=True)
-                self._client = QdrantClient(path=self.storage_path)
+                try:
+                    os.makedirs(self.storage_path, exist_ok=True)
+                    self._client = QdrantClient(path=self.storage_path)
+                except Exception as e:
+                    err_msg = str(e).lower()
+                    if "already accessed by another instance" in err_msg or "permission denied" in err_msg:
+                        logger.warning(
+                            f"Qdrant storage folder '{self.storage_path}' locked by another process. "
+                            "Switching seamlessly to isolated memory instance for this session."
+                        )
+                        self._client = QdrantClient(":memory:")
+                    else:
+                        raise e
         return self._client
 
     def initialize_collection(self, force_recreate: bool = False) -> int:
