@@ -18,6 +18,7 @@ import {
   HelpCircle,
   Layers,
   Sparkles,
+  Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -114,8 +115,14 @@ export default function DashboardPage() {
               </div>
             )}
             <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
-              <span className="text-emerald-500 font-medium">100% monitored</span>
-              <span>with active code coverage</span>
+              {projects.length > 0 ? (
+                <>
+                  <span className="text-emerald-500 font-medium">100% monitored</span>
+                  <span>with active code coverage</span>
+                </>
+              ) : (
+                <span>No active projects in portfolio</span>
+              )}
             </p>
           </div>
         </div>
@@ -473,6 +480,18 @@ export default function DashboardPage() {
               Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="h-16 rounded-xl bg-muted/40 shimmer-mask border border-border/40" />
               ))
+            ) : projects.length === 0 ? (
+              <div className="p-6 text-center space-y-2.5 border border-dashed border-border/70 rounded-xl bg-secondary/15">
+                <p className="text-xs text-muted-foreground">
+                  No construction projects active in your portfolio.
+                </p>
+                <Button size="sm" variant="outline" asChild className="text-xs gap-1.5 h-8">
+                  <Link href="/projects">
+                    <Plus className="w-3.5 h-3.5 text-primary" />
+                    <span>Create New Project</span>
+                  </Link>
+                </Button>
+              </div>
             ) : (
               projects.slice(0, 3).map((p) => {
                 const score = p.complianceRate ?? p.complianceScore ?? 100;
