@@ -28,7 +28,7 @@ export default function DocumentsPage() {
       const data = await api.getIndexedDocuments();
       setDocuments(data);
     } catch (err: any) {
-      setError(err.message || 'Failed to connect to backend vector store.');
+      setError(err.message || 'Failed to connect to document repository.');
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ export default function DocumentsPage() {
     setUploadMsg(null);
     try {
       const res = await api.uploadDocument(uploadFile);
-      setUploadMsg({ type: 'success', text: `${res.message} (${res.chunks_indexed} chunks indexed)` });
+      setUploadMsg({ type: 'success', text: `${res.message} (${res.chunks_indexed} sections indexed)` });
       setUploadFile(null);
       await fetchDocs();
       setTimeout(() => setShowUploadModal(false), 1800);
@@ -78,7 +78,7 @@ export default function DocumentsPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <PageHeader
           title="Document Knowledge Base"
-          description="Authoritative statutory building codes, project specifications, and inspection reports indexed in Qdrant."
+          description="Statutory building codes, project specifications, and inspection reports indexed in your project library."
           icon={Files}
         />
         <div className="flex items-center gap-3">
@@ -207,7 +207,7 @@ export default function DocumentsPage() {
                 Upload Regulatory Document
               </CardTitle>
               <CardDescription>
-                Supported formats: PDF, Markdown, HTML, and Text. Automatically cleaned, chunked, and indexed in Qdrant.
+                Supported formats: PDF, Markdown, HTML, and Text. Automatically processed and added to your project library.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -247,7 +247,7 @@ export default function DocumentsPage() {
                     Cancel
                   </Button>
                   <Button type="submit" size="sm" disabled={!uploadFile || uploading}>
-                    {uploading ? 'Ingesting...' : 'Index Document'}
+                    {uploading ? 'Adding Document...' : 'Upload & Add Document'}
                   </Button>
                 </div>
               </form>

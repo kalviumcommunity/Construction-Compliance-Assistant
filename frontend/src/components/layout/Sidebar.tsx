@@ -32,17 +32,17 @@ interface NavItem {
 
 const WORKSPACE_NAV: NavItem[] = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Compliance Assistant', href: '/assistant', icon: MessageSquareCode, badge: 'AI RAG' },
+  { name: 'Compliance Assistant', href: '/assistant', icon: MessageSquareCode, badge: 'AI' },
   { name: 'Regulatory Specs', href: '/documents', icon: FolderArchive },
   { name: 'Project Portfolios', href: '/projects', icon: Briefcase },
-  { name: 'QA/QC Inspections', href: '/inspections', icon: ClipboardList },
+  { name: 'Jobsite Inspections', href: '/inspections', icon: ClipboardList },
 ];
 
 const INTELLIGENCE_NAV: NavItem[] = [
-  { name: 'Search Explorer', href: '/search', icon: SearchCode },
+  { name: 'Search Regulations', href: '/search', icon: SearchCode },
   { name: 'Audit Log & History', href: '/history', icon: History },
-  { name: 'Benchmark Evaluation', href: '/evaluation', icon: Gauge },
-  { name: 'System Diagnostics', href: '/settings', icon: Sliders },
+  { name: 'Quality Tests', href: '/evaluation', icon: Gauge },
+  { name: 'System Status', href: '/settings', icon: Sliders },
 ];
 
 export function Sidebar() {
@@ -69,11 +69,11 @@ export function Sidebar() {
               SiteSafe
             </span>
             <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-primary/15 text-primary border border-primary/30 tracking-wide font-mono uppercase">
-              RAG
+              PRO
             </span>
           </div>
           <div className="text-[10.5px] text-muted-foreground font-medium truncate flex items-center gap-1.5">
-            <span>Regulatory Compliance</span>
+            <span>Building Code Compliance</span>
           </div>
         </div>
       </div>
@@ -121,7 +121,7 @@ export function Sidebar() {
         {/* Tier 2: Intelligence & Audit */}
         <div className="space-y-1">
           <p className="px-3 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest mb-2 font-mono">
-            Intelligence & QA
+            Quality & Oversight
           </p>
           {INTELLIGENCE_NAV.map((item) => {
             const active = isActive(item.href);
@@ -162,16 +162,16 @@ export function Sidebar() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
               <span className="text-[11px] font-semibold text-foreground">
-                Inference Gateway
+                Service Status
               </span>
             </div>
             <span className="text-[9.5px] font-mono text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
-              OPERATIONAL
+              ONLINE
             </span>
           </div>
           <div className="text-[10px] text-muted-foreground flex items-center justify-between pt-0.5 font-mono">
-            <span>{health?.llm_provider ? `${health.llm_provider} GA` : 'Gemini GA'}</span>
-            <span>{health?.indexed_documents || 402} Chunks</span>
+            <span>{health?.llm_provider ? `${health.llm_provider.toUpperCase()} AI` : 'AI Assistant'}</span>
+            <span>{health?.indexed_documents ?? 0} Documents</span>
           </div>
         </div>
       </div>

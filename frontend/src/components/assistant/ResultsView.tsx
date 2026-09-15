@@ -50,14 +50,18 @@ export function ResultsView() {
     setTimeout(() => setCopiedQuoteIdx(null), 2000);
   };
 
+  const primaryClause = result.citations?.[0]?.clause_number;
+
   const getVerdictDetails = (verdict: string) => {
     switch (verdict) {
       case 'Compliant':
         return {
           status: 'pass',
           badgeText: 'APPROVED • CODE COMPLIANT',
-          title: 'Installation Meets All Building Code Requirements',
-          description: 'The described materials, methods, and dimensions are fully compliant with applicable building codes and project specifications.',
+          title: primaryClause
+            ? `Installation Satisfies ${primaryClause} Requirements`
+            : 'Installation Meets Authoritative Building Standards',
+          description: 'The evaluated materials, dimensions, and installation methods comply with governing statutory codes and project specifications.',
           bgColor: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400',
           badgeClass: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/50',
           icon: <CheckCircle2 className="w-8 h-8 text-emerald-500" />,
@@ -66,8 +70,10 @@ export function ResultsView() {
         return {
           status: 'fail',
           badgeText: 'PROHIBITED • CODE VIOLATION',
-          title: 'Non-Compliant Condition — Remediation Required',
-          description: 'The described installation violates official statutory building codes or project specs. Correction is mandatory before sign-off.',
+          title: primaryClause
+            ? `Statutory Code Violation: Non-Compliant with ${primaryClause}`
+            : 'Non-Compliant Condition — Remediation Required',
+          description: 'The described installation violates governing regulatory provisions or project specifications. Correction is required before QA/QC sign-off.',
           bgColor: 'bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-400',
           badgeClass: 'bg-rose-500/20 text-rose-700 dark:text-rose-400 border-rose-500/50',
           icon: <XCircle className="w-8 h-8 text-rose-500" />,
@@ -76,9 +82,11 @@ export function ResultsView() {
       default:
         return {
           status: 'warn',
-          badgeText: 'ADDITIONAL INFORMATION / PERMIT REQUIRED',
-          title: 'Clarification or Engineering Variance Needed',
-          description: 'Specific dimensions, material ratings, or local jurisdiction approval are needed to make a final determination.',
+          badgeText: 'ADDITIONAL INFORMATION / VARIANCE NEEDED',
+          title: primaryClause
+            ? `Engineering Clarification Required: Reference ${primaryClause}`
+            : 'Submittal Clarification or Variance Required',
+          description: 'The observation requires specific architectural submittals, manufacturer data, or engineering approval to render a definitive verdict.',
           bgColor: 'bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400',
           badgeClass: 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/50',
           icon: <HelpCircle className="w-8 h-8 text-amber-500" />,
@@ -91,6 +99,25 @@ export function ResultsView() {
 
   return (
     <div className="space-y-6 mt-6">
+      {/* Evaluated Observation Context Banner */}
+      <div className="bg-muted/40 border border-border/80 rounded-xl p-3.5 flex items-start gap-3 shadow-xs">
+        <div className="p-1.5 rounded-lg bg-primary/10 text-primary mt-0.5 shrink-0">
+          <FileText className="w-4 h-4" />
+        </div>
+        <div className="flex-1 min-w-0 space-y-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Dynamically Evaluated Prompt</span>
+            {result.citations?.[0]?.trade && (
+              <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.2 rounded-full bg-background border">
+                {result.citations[0].trade} Discipline
+              </span>
+            )}
+          </div>
+          <p className="text-sm font-semibold text-foreground italic">
+            &ldquo;{result.query || 'Submitted Field Observation'}&rdquo;
+          </p>
+        </div>
+      </div>
       {/* Top Results Action Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -121,7 +148,7 @@ export function ResultsView() {
             className="gap-2"
           >
             <Layers className="w-4 h-4" />
-            <span>Source Text Chunks ({result.retrieved_chunks?.length || 0})</span>
+            <span>Document Excerpts ({result.retrieved_chunks?.length || 0})</span>
           </Button>
         </div>
 
@@ -275,58 +302,77 @@ export function ResultsView() {
 
           {result.citations && result.citations.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
-              {result.citations.map((cite: any, idx: number) => (
-                <Card key={idx} className="p-5 hover:border-primary/50 transition-all space-y-3.5 shadow-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="clause-badge">
-                        {cite.clause_number}
+              {result.citations.map((cite: any, idx: number) => {
+                const tradeLower = (cite.trade || '').toLowerCase().replace(/\s+/g, '');
+                const tradeClass =
+                  tradeLower.includes('elec') ? 'badge-electrical' :
+                  tradeLower.includes('struct') ? 'badge-structural' :
+                  tradeLower.includes('fire') ? 'badge-firesafety' :
+                  tradeLower.includes('plumb') ? 'badge-plumbing' :
+                  'bg-muted text-muted-foreground';
+
+                return (
+                  <Card
+                    key={idx}
+                    className={`p-5 hover:border-primary/50 transition-all space-y-3.5 shadow-sm bento-card animate-stagger-${Math.min((idx % 5) + 1, 5)}`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="clause-badge">
+                          {cite.clause_number}
+                        </span>
+                        <span className="text-sm font-bold text-foreground">
+                          {cite.document_title}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-[10px] px-2.5 py-0.5 rounded-full border font-semibold ${tradeClass}`}>
+                          {cite.trade}
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-semibold border">
+                          {cite.jurisdiction}
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-semibold border">
+                          {cite.document_type}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-xs flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-sky-500" />
+                      <span className="text-muted-foreground">Section / Page: <strong className="text-foreground">{cite.page_or_section}</strong></span>
+                    </div>
+
+                    <div className="citation-quote relative group">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center justify-between not-italic">
+                        <span>Official Statutory Text (Verbatim Extract):</span>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(cite.direct_quote, idx)}
+                          className="hover:text-primary p-1 rounded transition-colors flex items-center gap-1 font-sans"
+                          title="Copy quote"
+                        >
+                          {copiedQuoteIdx === idx ? (
+                            <><Check className="w-3 h-3 text-emerald-500" /><span className="text-emerald-500">Copied</span></>
+                          ) : (
+                            <><Copy className="w-3 h-3" /><span>Copy</span></>
+                          )}
+                        </button>
+                      </div>
+                      <blockquote className="leading-relaxed">
+                        &ldquo;{cite.direct_quote}&rdquo;
+                      </blockquote>
+                    </div>
+
+                    <div className="text-sm flex items-start gap-2 bg-secondary/40 p-3.5 rounded-xl border border-border/60">
+                      <ArrowRight className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                      <span className="text-xs sm:text-sm">
+                        <strong className="text-foreground font-semibold">Field Application:</strong> {cite.relevance_explanation}
                       </span>
-                      <span className="text-sm font-bold">
-                        {cite.document_title}
-                      </span>
                     </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">{cite.trade}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">{cite.jurisdiction}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">{cite.document_type}</span>
-                    </div>
-                  </div>
-
-                  <div className="text-xs flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-sky-500" />
-                    <span className="text-muted-foreground">Section / Page: <strong className="text-foreground">{cite.page_or_section}</strong></span>
-                  </div>
-
-                  <div className="bg-muted/50 border-l-4 border-primary rounded-r-xl p-3.5 relative group">
-                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                      <span>Official Statutory Text (Verbatim Extract):</span>
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(cite.direct_quote, idx)}
-                        className="hover:text-primary p-1 rounded transition-colors flex items-center gap-1"
-                        title="Copy quote"
-                      >
-                        {copiedQuoteIdx === idx ? (
-                          <><Check className="w-3 h-3 text-emerald-500" /><span className="text-emerald-500">Copied</span></>
-                        ) : (
-                          <><Copy className="w-3 h-3" /><span>Copy</span></>
-                        )}
-                      </button>
-                    </div>
-                    <blockquote className="text-sm text-foreground/90 italic leading-relaxed">
-                      &ldquo;{cite.direct_quote}&rdquo;
-                    </blockquote>
-                  </div>
-
-                  <div className="text-sm flex items-start gap-2 bg-muted p-3 rounded-xl border">
-                    <ArrowRight className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Field Application:</strong> {cite.relevance_explanation}
-                    </span>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           ) : (
             <Card className="p-8 text-center text-sm text-muted-foreground">
@@ -339,11 +385,14 @@ export function ResultsView() {
       {activeTab === 'sources' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <p>Showing {result.retrieved_chunks?.length || 0} retrieved code excerpts from the database:</p>
+            <p>Showing {result.retrieved_chunks?.length || 0} referenced standard excerpts:</p>
           </div>
           <div className="space-y-3">
             {result.retrieved_chunks?.map((chunk: any, idx: number) => (
-              <Card key={idx} className="p-4 space-y-2.5">
+              <Card
+                key={idx}
+                className={`p-4 space-y-2.5 bento-card animate-stagger-${Math.min((idx % 5) + 1, 5)}`}
+              >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
                   <div className="flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[11px] font-bold">
@@ -357,7 +406,7 @@ export function ResultsView() {
                     <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground text-[10px]">{chunk.jurisdiction}</span>
                   </div>
                 </div>
-                <p className="text-sm leading-relaxed bg-muted/50 p-3 rounded-lg border">
+                <p className="text-sm leading-relaxed bg-muted/50 p-3 rounded-lg border font-sans">
                   {chunk.text}
                 </p>
                 <div className="text-[10px] text-muted-foreground flex justify-between pt-0.5">

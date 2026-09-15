@@ -1,4 +1,5 @@
 import { Project, Document, QueryHistory, Inspection } from "@/types";
+export type { Project, Document, QueryHistory, Inspection };
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 export const DEFAULT_INGEST_KEY = process.env.NEXT_PUBLIC_INGEST_API_KEY || "sitesafe-admin-key-2026";
@@ -33,6 +34,7 @@ export interface RetrievedChunkInfo {
 }
 
 export interface ComplianceResponse {
+  query?: string;
   verdict: ComplianceVerdict;
   confidence_score: number;
   summary: string;

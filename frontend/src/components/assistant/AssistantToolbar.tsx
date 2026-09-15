@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import { Building2, ChevronDown, Check, BookOpen, History } from 'lucide-react';
-import { useAssistant, PROJECTS } from './AssistantContext';
+import { useAssistant } from './AssistantContext';
 import { Button } from '@/components/ui/button';
 
 export function AssistantToolbar() {
   const [showProjectMenu, setShowProjectMenu] = useState(false);
   const { 
-    currentProject, setCurrentProject, 
+    currentProject, setCurrentProject, projects,
     setShowCodebookModal, indexedDocs, fetchIndexedDocuments,
     queryHistory, setShowHistoryDrawer,
     backendHealth
@@ -25,9 +25,9 @@ export function AssistantToolbar() {
           <Building2 className="w-4 h-4 text-primary" />
           <div className="text-left hidden md:block">
             <div className="font-semibold text-foreground max-w-[180px] truncate">
-              {currentProject.name}
+              {currentProject?.name || 'Active Project Portfolio'}
             </div>
-            <div className="text-[10px] text-muted-foreground">{currentProject.phase}</div>
+            <div className="text-[10px] text-muted-foreground">{currentProject?.phase || currentProject?.location || 'Jobsite Specs Synced'}</div>
           </div>
           <ChevronDown className="w-4 h-4 text-muted-foreground" />
         </Button>
@@ -37,8 +37,8 @@ export function AssistantToolbar() {
             <div className="px-2 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider border-b">
               Select Active Construction Jobsite
             </div>
-            <div className="space-y-1 mt-1.5">
-              {PROJECTS.map((proj) => (
+            <div className="space-y-1 mt-1.5 max-h-60 overflow-y-auto">
+              {projects.map((proj) => (
                 <button
                   key={proj.id}
                   type="button"
@@ -47,17 +47,17 @@ export function AssistantToolbar() {
                     setShowProjectMenu(false);
                   }}
                   className={`w-full text-left p-2 rounded-lg text-xs transition-colors flex items-start justify-between ${
-                    currentProject.id === proj.id
+                    currentProject?.id === proj.id
                       ? 'bg-primary/10 text-primary border border-primary/20'
                       : 'text-foreground hover:bg-muted'
                   }`}
                 >
                   <div>
                     <div className="font-bold">{proj.name}</div>
-                    <div className="text-[11px] text-muted-foreground">{proj.phase}</div>
-                    <div className="text-[10px] text-primary/80 mt-0.5">{proj.code}</div>
+                    <div className="text-[11px] text-muted-foreground">{proj.location}</div>
+                    <div className="text-[10px] text-primary/80 mt-0.5">{proj.activeCodes?.[0] || proj.active_codes?.[0] || 'Code Compliant'}</div>
                   </div>
-                  {currentProject.id === proj.id && <Check className="w-4 h-4 text-primary mt-1" />}
+                  {currentProject?.id === proj.id && <Check className="w-4 h-4 text-primary mt-1" />}
                 </button>
               ))}
             </div>

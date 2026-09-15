@@ -64,14 +64,14 @@ export default function InspectionsPage() {
     <div className="w-full space-y-8 animate-fade-up">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
         <PageHeader
-          title="QA/QC Inspection Ledger"
-          description="Jobsite compliance punch list, code non-conformance tracking, and statutory violation resolution."
+          title="Jobsite Inspections & Punch List"
+          description="On-site safety observations, compliance defect tracking, and inspection pass/fail records."
           icon={ClipboardCheck}
         />
         <Button asChild className="gap-2 font-semibold shadow-sm">
           <Link href="/assistant">
             <ShieldAlert className="w-4 h-4" />
-            <span>Verify Defect in Assistant</span>
+            <span>Verify Item in Assistant</span>
           </Link>
         </Button>
       </div>

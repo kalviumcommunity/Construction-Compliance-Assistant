@@ -1,0 +1,21 @@
+PROJECT: Skyline Commercial Tower - Phase 2 Interior Build-Out
+DATE: September 12, 2026
+INSPECTOR: Michael Chang, PE (Senior Electrical QA/QC Auditor)
+REPORT NUMBER: Inspection Report #IR-2026-098
+LOCATION: Building C, Level 4 Mechanical Return Air Plenum (Grid E2 to G8)
+TRADE: Electrical / Low-Voltage Telecommunications
+
+OBSERVATION & FINDINGS:
+1. Low-Voltage Communication Cabling Installation:
+During routine rough-in ceiling inspection, inspector audited approximately 450 linear feet of Category 6A Ethernet cabling installed in J-hooks suspended above the acoustic tile ceiling in the return air plenum space.
+
+2. Non-Conformance Identification:
+Cable jacket markings indicate the installed cable is Type CMR (Communications Riser Cable, UL 1666 rated). 
+Per National Electrical Code (NEC 2023) Article 300.22(C)(1) and Article 725.135(C), cabling installed in spaces used for environmental air (plenums) must be Type CMP (Communications Plenum Cable, NFPA 262 rated with low smoke-producing characteristics) or encased in metallic conduit raceway (EMT, RMC).
+
+3. Remediation Action Required:
+A Non-Conformance Notice (NCR #IR-2026-098) is hereby issued to Low-Voltage Subcontractor (Apex Comm Data Inc.).
+- Subcontractor must immediately halt cabling pull in Sector 4.
+- All non-plenum rated Type CMR cables in return air plenums must be removed.
+- Subcontractor shall pull compliant Type CMP plenum-rated cabling or install metallic raceway prior to closing ceiling grid.
+- Re-inspection required within 5 working days before drywall closure sign-off.

@@ -78,7 +78,9 @@ export default function ProjectsPage() {
           </div>
         ) : (
           filteredProjects.map((project) => {
-            const score = project.complianceRate || 92;
+            const score = project.complianceRate ?? project.complianceScore ?? 100;
+            const docCount = project.documentCount ?? project.specCount ?? project.document_count ?? 0;
+            const activeCodeName = project.activeCodes?.[0] || project.active_codes?.[0] || 'Building Codes Synced';
             const isActive = project.status === 'active';
 
             return (
@@ -137,11 +139,11 @@ export default function ProjectsPage() {
                   <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
                     <span className="flex items-center gap-1">
                       <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>{project.specCount || 12} Specifications</span>
+                      <span>{docCount} Specifications</span>
                     </span>
                     <span className="flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>IBC / NEC Synced</span>
+                      <span>{activeCodeName}</span>
                     </span>
                   </div>
                 </div>
