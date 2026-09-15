@@ -247,13 +247,19 @@
 
 /* ─── Micro Animations ────────────────────────────────── */
 @keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-up {
   animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+.animate-stagger-1 { animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both; }
+.animate-stagger-2 { animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.10s both; }
+.animate-stagger-3 { animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+.animate-stagger-4 { animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.20s both; }
+.animate-stagger-5 { animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both; }
 
 @keyframes pulseSoft {
   0%, 100% { opacity: 1; transform: scale(1); }
@@ -264,6 +270,31 @@
   animation: pulseSoft 3s ease-in-out infinite;
 }
 
+/* ─── Trade Specific Badge Variants ───────────────────── */
+.badge-electrical {
+  background: hsl(38 94% 50% / 0.12);
+  color: hsl(38 94% 50%);
+  border-color: hsl(38 94% 50% / 0.3);
+}
+
+.badge-structural {
+  background: hsl(210 100% 55% / 0.12);
+  color: hsl(210 100% 55%);
+  border-color: hsl(210 100% 55% / 0.3);
+}
+
+.badge-firesafety {
+  background: hsl(0 75% 55% / 0.12);
+  color: hsl(0 75% 55%);
+  border-color: hsl(0 75% 55% / 0.3);
+}
+
+.badge-plumbing {
+  background: hsl(150 75% 45% / 0.12);
+  color: hsl(150 75% 45%);
+  border-color: hsl(150 75% 45% / 0.3);
+}
+
 /* ─── Subtle Blueprint Grid Overlay ───────────────────── */
 .bg-blueprint {
   background-size: 24px 24px;
@@ -271,3 +302,4 @@
     linear-gradient(to right, hsl(var(--border) / 0.25) 1px, transparent 1px),
     linear-gradient(to bottom, hsl(var(--border) / 0.25) 1px, transparent 1px);
 }
+

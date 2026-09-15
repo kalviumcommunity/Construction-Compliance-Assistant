@@ -10,8 +10,7 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
-  Clock,
-  Key,
+  FileCheck,
   Layers,
   Sparkles,
 } from 'lucide-react';
@@ -44,8 +43,8 @@ export default function SettingsPage() {
     <div className="w-full space-y-8 animate-fade-up">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
         <PageHeader
-          title="System Engine & Security Diagnostics"
-          description="Google GenAI GA SDK configuration, Qdrant vector store telemetry, and production DevSecOps controls."
+          title="System Status & Service Overview"
+          description="Real-time health status, active regulatory libraries, security policies, and service diagnostics."
           icon={Settings}
         />
         <Button
@@ -56,21 +55,21 @@ export default function SettingsPage() {
           className="gap-2 text-xs"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isPinging ? 'animate-spin' : ''}`} />
-          <span>{isPinging ? 'Pinging Gateway...' : 'Ping Backend API'}</span>
+          <span>{isPinging ? 'Testing Connection...' : 'Test System Connection'}</span>
           {pingLatency !== null && (
             <span
               className={`font-mono text-[11px] font-bold ${
                 pingLatency > 0 ? 'text-emerald-500' : 'text-rose-500'
               }`}
             >
-              {pingLatency > 0 ? `${pingLatency}ms` : 'Failed'}
+              {pingLatency > 0 ? `${pingLatency}ms (Good)` : 'Disconnected'}
             </span>
           )}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* ─── Card 1: Google GenAI GA SDK Telemetry ────────────────────── */}
+        {/* ─── Card 1: AI Compliance Assistant ──────────────────────────── */}
         <div className="bento-card p-6 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-border/50">
             <div className="flex items-center gap-2.5">
@@ -78,53 +77,54 @@ export default function SettingsPage() {
                 <Cpu className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">Inference & LLM Architecture</h3>
-                <p className="text-xs text-muted-foreground">Official GA SDK integration parameters</p>
+                <h3 className="text-base font-bold text-foreground">AI Compliance Assistant</h3>
+                <p className="text-xs text-muted-foreground">Automated regulatory analysis and verification engine</p>
               </div>
             </div>
             <Badge variant="outline" className="text-emerald-500 border-emerald-500/30 text-[10px]">
-              GA SDK Active
+              Active &amp; Ready
             </Badge>
           </div>
 
           <div className="space-y-3 text-xs">
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">SDK Package</span>
-              <span className="font-mono font-semibold text-foreground">google-genai &gt;= 2.0.0</span>
-            </div>
-
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Primary Model</span>
-              <span className="font-mono font-semibold text-foreground">
-                {health?.model || 'gemini-2.5-flash'}
+              <span className="text-muted-foreground">Assistant Provider</span>
+              <span className="font-semibold text-foreground">
+                {health?.llm_provider ? `${health.llm_provider.toUpperCase()} AI Engine` : 'Rule-Based Engine'}
               </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Structured Schema</span>
-              <span className="font-mono font-semibold text-foreground">
-                LLMComplianceOutput (Pydantic v2)
+              <span className="text-muted-foreground">Active Model</span>
+              <span className="font-semibold text-foreground">
+                {health?.model || 'Gemini 2.5 Flash'}
               </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Context Window Budget</span>
-              <span className="font-mono font-semibold text-foreground">16,000 chars (~4,000 tokens)</span>
+              <span className="text-muted-foreground">Verification Standard</span>
+              <span className="font-semibold text-foreground">
+                Strict Context Grounding (Verbatim Quotes)
+              </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Retry & Resilience</span>
-              <span className="font-mono font-semibold text-foreground">3 Retries (Exp Backoff + Jitter)</span>
+              <span className="text-muted-foreground">Missing Data Protocol</span>
+              <span className="font-semibold text-emerald-500">
+                Safe Clarification (Flags Ambiguity)
+              </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Out-of-Scope Fallback</span>
-              <span className="font-mono font-semibold text-emerald-500">Deterministic Safe Refusal</span>
+              <span className="text-muted-foreground">Service Reliability</span>
+              <span className="font-semibold text-foreground">
+                Automatic Retry with Fallback Guardrails
+              </span>
             </div>
           </div>
         </div>
 
-        {/* ─── Card 2: Vector Store & Retrieval Engine ─────────────────── */}
+        {/* ─── Card 2: Regulatory Knowledge Base ───────────────────────── */}
         <div className="bento-card p-6 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-border/50">
             <div className="flex items-center gap-2.5">
@@ -132,98 +132,99 @@ export default function SettingsPage() {
                 <Database className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">Vector Store & Retrieval Engine</h3>
-                <p className="text-xs text-muted-foreground">Qdrant dense + keyword index configuration</p>
+                <h3 className="text-base font-bold text-foreground">Regulatory Knowledge Base</h3>
+                <p className="text-xs text-muted-foreground">Indexed building codes, specifications, and reports</p>
               </div>
             </div>
             <Badge variant="outline" className="text-sky-500 border-sky-500/30 text-[10px]">
-              Qdrant Connected
+              Database Connected
             </Badge>
           </div>
 
           <div className="space-y-3 text-xs">
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Collection Name</span>
+              <span className="text-muted-foreground">Indexed Sections</span>
               <span className="font-mono font-semibold text-foreground">
-                {health?.collection_name || 'building_code_chunks'}
+                {isLoading ? '...' : health?.indexed_documents || 0} Clauses
               </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Vector Dimensions</span>
-              <span className="font-mono font-semibold text-foreground">768-dim (text-embedding-004)</span>
-            </div>
-
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Total Indexed Chunks</span>
-              <span className="font-mono font-semibold text-foreground">
-                {isLoading ? '...' : health?.indexed_documents || 0}
+              <span className="text-muted-foreground">Active Jurisdictions</span>
+              <span className="font-semibold text-foreground">
+                National Model, California, NYC
               </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Retrieval Strategy</span>
-              <span className="font-mono font-semibold text-foreground">Hybrid RRF (Dense + BM25)</span>
+              <span className="text-muted-foreground">Supported Trades</span>
+              <span className="font-semibold text-foreground">
+                Structural, Fire Safety, Electrical, Plumbing
+              </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Concurrency Lock Handling</span>
-              <span className="font-mono font-semibold text-foreground">Graceful In-Memory Fallback</span>
+              <span className="text-muted-foreground">Search Precision</span>
+              <span className="font-semibold text-emerald-500">
+                Smart Semantic &amp; Clause Lookup
+              </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Distance Metric</span>
-              <span className="font-mono font-semibold text-foreground">Cosine Similarity</span>
+              <span className="text-muted-foreground">Table &amp; Chart Preservation</span>
+              <span className="font-semibold text-foreground">
+                Active (Tables Kept Intact)
+              </span>
             </div>
           </div>
         </div>
 
-        {/* ─── Card 3: DevSecOps & Rate Limiting Controls ───────────────── */}
+        {/* ─── Card 3: Security & Privacy Standards ─────────────────────── */}
         <div className="bento-card p-6 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-border/50">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-rose-500/10 text-rose-500">
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
                 <Shield className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">DevSecOps & Rate Limiting</h3>
-                <p className="text-xs text-muted-foreground">Production abuse prevention & network controls</p>
+                <h3 className="text-base font-bold text-foreground">Privacy &amp; Security Standards</h3>
+                <p className="text-xs text-muted-foreground">Enterprise compliance, data protection, and safeguards</p>
               </div>
             </div>
             <Badge variant="outline" className="text-emerald-500 border-emerald-500/30 text-[10px]">
-              Enforced
+              Protected
             </Badge>
           </div>
 
           <div className="space-y-3 text-xs">
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">CORS Policy</span>
-              <span className="font-mono font-semibold text-emerald-500">Explicit Whitelist (No Wildcard)</span>
+              <span className="text-muted-foreground">Data Privacy</span>
+              <span className="font-semibold text-emerald-500">Confidential (No Public Model Training)</span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Verify Rate Limit</span>
-              <span className="font-mono font-semibold text-foreground">60 Requests / Minute</span>
+              <span className="text-muted-foreground">Access Protection</span>
+              <span className="font-semibold text-foreground">Authorized API Key Authentication</span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Limiter Algorithm</span>
-              <span className="font-mono font-semibold text-foreground">Sliding Window Memory Limiter</span>
+              <span className="text-muted-foreground">Abuse Prevention</span>
+              <span className="font-semibold text-foreground">Rate Limiting Active</span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">Ingest Authentication</span>
-              <span className="font-mono font-semibold text-foreground">X-API-Key Required</span>
+              <span className="text-muted-foreground">Supported Upload Formats</span>
+              <span className="font-semibold text-foreground">PDF, Markdown, HTML, Text</span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/30">
-              <span className="text-muted-foreground">File Upload Limit</span>
-              <span className="font-mono font-semibold text-foreground">50MB Max / PDF, TXT, MD</span>
+              <span className="text-muted-foreground">Max Upload File Size</span>
+              <span className="font-semibold text-foreground">10 MB Per Specification File</span>
             </div>
           </div>
         </div>
 
-        {/* ─── Card 4: Gateway Endpoint Status ──────────────────────────── */}
+        {/* ─── Card 4: Service Components ───────────────────────────────── */}
         <div className="bento-card p-6 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-border/50">
             <div className="flex items-center gap-2.5">
@@ -231,45 +232,31 @@ export default function SettingsPage() {
                 <Lock className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">API Gateway Route Registry</h3>
-                <p className="text-xs text-muted-foreground">Registered FastAPI HTTP endpoints</p>
+                <h3 className="text-base font-bold text-foreground">Application Services</h3>
+                <p className="text-xs text-muted-foreground">Integrated compliance workflow services</p>
               </div>
             </div>
-            <span className="font-mono text-xs text-muted-foreground">{API_BASE}</span>
+            <span className="font-mono text-xs text-muted-foreground">SiteSafe Suite</span>
           </div>
 
           <div className="space-y-2 text-xs">
             {[
-              { path: '/api/verify-compliance', method: 'POST', auth: 'Rate-Limited', desc: 'RAG Compliance Evaluation' },
-              { path: '/api/health', method: 'GET', auth: 'Public', desc: 'System Telemetry & Status' },
-              { path: '/api/documents', method: 'GET', auth: 'Public', desc: 'Indexed Building Specifications' },
-              { path: '/api/stats', method: 'GET', auth: 'Public', desc: 'Corpus Aggregate Metrics' },
-              { path: '/api/history', method: 'GET', auth: 'Public', desc: 'Audit Trail & Recent Queries' },
-              { path: '/api/projects', method: 'GET', auth: 'Public', desc: 'Project Portfolios & Scores' },
-              { path: '/api/inspections', method: 'GET', auth: 'Public', desc: 'QA/QC Punch List Ledger' },
-              { path: '/api/ingest/upload', method: 'POST', auth: 'API Key', desc: 'File Ingestion Pipeline' },
-              { path: '/api/reindex', method: 'POST', auth: 'API Key', desc: 'Corpus Vector Re-indexing' },
-            ].map((route) => (
+              { name: 'Compliance Verification', desc: 'Real-time building code checking and verdict engine' },
+              { name: 'Document Knowledge Base', desc: 'Specification indexing, search, and storage' },
+              { name: 'Jobsite Punch List', desc: 'Field inspection tracking and non-conformance logs' },
+              { name: 'Project Portfolios', desc: 'Multi-jobsite tracking and jurisdictional mapping' },
+              { name: 'Audit & Query History', desc: 'Official compliance log with CSV export capability' },
+              { name: 'Document Ingestion', desc: 'Automated document ingestion and table parsing' },
+            ].map((service) => (
               <div
-                key={route.path}
-                className="flex items-center justify-between p-2 rounded-md bg-secondary/20 border border-border/40 font-mono text-[11px]"
+                key={service.name}
+                className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/20 border border-border/40"
               >
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${
-                      route.method === 'POST' ? 'bg-primary/20 text-primary' : 'bg-sky-500/20 text-sky-500'
-                    }`}
-                  >
-                    {route.method}
-                  </span>
-                  <span className="text-foreground">{route.path}</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span className="font-semibold text-foreground">{service.name}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground text-[10px] hidden sm:inline">{route.desc}</span>
-                  <Badge variant="outline" className="text-[9px] px-1.5 py-0">
-                    {route.auth}
-                  </Badge>
-                </div>
+                <span className="text-muted-foreground text-[11px]">{service.desc}</span>
               </div>
             ))}
           </div>

@@ -15,10 +15,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Sidebar } from './Sidebar';
-import { useSystemHealth } from '@/lib/api';
+import { useSystemHealth, useProjects } from '@/lib/api';
 
 export function Topbar() {
   const { health } = useSystemHealth();
+  const { projects } = useProjects();
+  const activeProject = projects.find((p) => p.status === 'active') || projects[0];
 
   return (
     <header className="h-16 border-b border-border/70 glass flex items-center justify-between px-4 sm:px-6 sticky top-0 z-10 shrink-0 shadow-xs">
@@ -43,7 +45,7 @@ export function Topbar() {
             <ShieldCheck className="w-4 h-4 text-primary-foreground" strokeWidth={2.5} />
           </div>
           <span className="font-bold text-sm text-foreground" style={{ fontFamily: "'Space Grotesk Variable', sans-serif" }}>
-            SiteSafe <span className="text-primary font-mono text-xs">RAG</span>
+            SiteSafe <span className="text-primary font-mono text-xs">PRO</span>
           </span>
         </div>
 
@@ -53,11 +55,13 @@ export function Topbar() {
             <Building2 className="w-3.5 h-3.5 text-primary" />
             <span className="font-medium text-[11px] uppercase tracking-wider">Project:</span>
           </div>
-          <span className="font-semibold text-foreground">Skyline Commercial Tower (Seattle)</span>
+          <span className="font-semibold text-foreground">
+            {activeProject ? `${activeProject.name} (${activeProject.location})` : 'Active Project Portfolio'}
+          </span>
           <span className="text-muted-foreground font-mono text-[10.5px]">•</span>
           <span className="text-emerald-500 font-medium text-[11px] flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-            IBC 2024 Active
+            {activeProject?.active_codes?.[0] || 'Official Codes Synced'}
           </span>
         </div>
       </div>
@@ -79,7 +83,7 @@ export function Topbar() {
         {/* Live System Uptime Indicator */}
         <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[11px] font-mono">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span>RAG Gateway Active</span>
+          <span>System Online</span>
         </div>
 
         {/* Quick Assistant CTA */}

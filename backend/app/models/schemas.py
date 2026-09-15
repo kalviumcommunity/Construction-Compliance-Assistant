@@ -75,6 +75,7 @@ class ComplianceQueryRequest(BaseModel):
 
 
 class ComplianceResponse(BaseModel):
+    query: Optional[str] = None
     verdict: ComplianceVerdict
     confidence_score: float
     summary: str

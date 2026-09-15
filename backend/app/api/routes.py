@@ -81,70 +81,50 @@ _query_history: List[QueryHistoryItem] = [
 
 _projects_store: List[ProjectSummary] = [
     ProjectSummary(
-        id="p1",
-        name="Skyline Commercial Tower",
-        location="Seattle, WA",
+        id="p-aurora-2026",
+        name="Aurora Horizon Life Sciences & Innovation Center",
+        location="Cambridge, MA",
         status="active",
-        document_count=24,
-        last_updated="2026-09-10",
-        compliance_score=97,
-        active_codes=["IBC 2021", "NFPA 70 / NEC 2023", "UPC 2024"],
-    ),
-    ProjectSummary(
-        id="p2",
-        name="Harbor Point Medical Pavilion",
-        location="San Francisco, CA",
-        status="active",
-        document_count=18,
-        last_updated="2026-09-09",
-        compliance_score=94,
-        active_codes=["CBC Title 24", "NFPA 101", "OSHPD 1"],
-    ),
-    ProjectSummary(
-        id="p3",
-        name="Midtown Mixed-Use Residences",
-        location="New York, NY",
-        status="completed",
-        document_count=36,
-        last_updated="2026-08-30",
-        compliance_score=99,
-        active_codes=["NYC Building Code 2022", "NEC 2020"],
+        document_count=28,
+        last_updated="2026-09-15",
+        compliance_score=98,
+        active_codes=["IBC 2024", "NFPA 70 / NEC 2023", "UPC 2024", "NFPA 99 Healthcare"],
     ),
 ]
 
 _inspections_store: List[InspectionFinding] = [
     InspectionFinding(
-        id="ir-2024-089",
-        project_id="p1",
-        date="2026-09-09",
-        inspector="Sarah Jenkins (PE, QA/QC Lead)",
+        id="ir-2026-098",
+        project_id="p-aurora-2026",
+        date="2026-09-12",
+        inspector="Michael Chang (PE, Senior Electrical Auditor)",
         status="Non-Compliant / NCR Issued",
         findings_count=1,
         trade="Electrical",
-        description="Schedule 40 PVC conduit routed through plenum return air without metallic encasement.",
+        description="Type CMR riser-rated cable routed through ceiling plenum return without metallic conduit encasement.",
         clause_reference="NEC § 300.22(C)(1)",
     ),
     InspectionFinding(
-        id="ir-2024-092",
-        project_id="p1",
+        id="ir-2026-092",
+        project_id="p-aurora-2026",
         date="2026-09-08",
         inspector="David Vance (Senior Structural Inspector)",
         status="Passed / Approved",
         findings_count=0,
         trade="Structural",
-        description="28-day cylinder compressive strength breaks verified at 4,850 psi exceeding 4,000 psi design minimum.",
-        clause_reference="Spec 03 30 00 § 3.2",
+        description="Perimeter fall protection guardrail top rails verified at 42 inches above walking deck withstanding 200 lbs force.",
+        clause_reference="OSHA 1926.502(b)(1)",
     ),
     InspectionFinding(
-        id="ir-2024-095",
-        project_id="p1",
+        id="ir-2026-095",
+        project_id="p-aurora-2026",
         date="2026-09-07",
         inspector="Carlos Rivera (Plumbing Inspector)",
         status="Passed / Approved",
         findings_count=0,
         trade="Plumbing",
-        description="Hydrostatic rough DWV water test held for 30 minutes at 42-foot head with zero measurable water loss.",
-        clause_reference="UPC § 312.2",
+        description="Medical gas distribution line brazing witnessed with continuous dry nitrogen purge below 1.0% oxygen.",
+        clause_reference="Spec 22 61 00 § 3.01",
     ),
 ]
 
@@ -188,7 +168,7 @@ async def get_system_health():
         service=settings.APP_NAME,
         vector_store="Qdrant Hybrid (Dense + BM25 Sparse RRF)",
         collection_name=settings.QDRANT_COLLECTION,
-        indexed_documents=total_docs or len(rag_pipeline.get_document_summaries()),
+        indexed_documents=len(rag_pipeline.get_document_summaries()),
         openai_configured=has_openai,
         gemini_configured=has_gemini,
         llm_provider=provider,
@@ -347,7 +327,7 @@ async def upload_and_ingest_document(file: UploadFile = File(...)):
         tmp_path = tmp.name
 
     try:
-        indexed_count, err = rag_pipeline.ingest_single_file(tmp_path)
+        indexed_count, err = rag_pipeline.ingest_single_file(tmp_path, original_filename=clean_filename)
         if err:
             logger.warning(f"Document parsing error for '{clean_filename}': {err}")
             raise HTTPException(

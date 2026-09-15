@@ -1,11 +1,12 @@
 import './globals.css';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 
 export const metadata = {
-  title: 'SiteSafe — Enterprise Construction Regulatory RAG Suite',
+  title: 'SiteSafe — Construction Compliance & Building Code Assistant',
   description:
-    'AI-powered statutory building code verification and project specification compliance platform.',
+    'AI-powered building code verification and jobsite specification compliance platform.',
 };
 
 export const viewport = {
@@ -23,7 +24,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Topbar />
           <main className="flex-1 overflow-y-auto">
             <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-              {children}
+              <ErrorBoundary
+                fallbackTitle="SiteSafe Service Temporarily Unavailable"
+                fallbackMessage="An unexpected rendering exception was caught safely by the application boundary."
+              >
+                {children}
+              </ErrorBoundary>
             </div>
           </main>
         </div>

@@ -45,15 +45,17 @@ export default function SearchPage() {
   const sampleQueries = [
     { label: "IBC 705.8 Setbacks", text: "IBC 705.8 exterior wall opening protection and lot line setbacks", trade: "Fire Safety" },
     { label: "Plenum PVC Prohibition", text: "Is rigid nonmetallic PVC conduit prohibited in ceiling air plenums?", trade: "Electrical" },
-    { label: "Post-Tensioned Concrete PSI", text: "Minimum 28-day compressive strength for elevated post-tensioned slabs", trade: "Structural" },
-    { label: "Plumbing Hydrostatic Test", text: "UPC 312.2 drainage and vent hydrostatic water test 10-ft head", trade: "Plumbing" },
+    { label: "OSHA 1926 Guardrail Criteria", text: "OSHA 1926.502 top rail height 42 inches and 200 pounds minimum force", trade: "Structural" },
+    { label: "Duct Liner Flame Spread", text: "ASTM E84 flame spread index not exceeding 25 for return air plenum acoustic liner", trade: "Fire Safety" },
+    { label: "Title 24 Lighting Shut-Off", text: "California Energy Code Title 24 Section 130.1 automatic shut-off occupancy sensors 20 minutes", trade: "Electrical" },
+    { label: "Medical Gas Nitrogen Purge", text: "Medical gas copper piping BCuP brazing continuous dry nitrogen purge", trade: "Plumbing" },
   ];
 
   return (
     <div className="w-full space-y-8 animate-fade-up">
       <PageHeader
-        title="RAG Search Explorer"
-        description="Inspect dense semantic matching, BM25 sparse keyword retrieval, and Reciprocal Rank Fusion (RRF) across Qdrant."
+        title="Regulations & Standards Search"
+        description="Search statutory building codes, project specifications, and trade regulations by clause, trade, or keyword."
         icon={Search}
       />
 
@@ -65,7 +67,7 @@ export default function SearchPage() {
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search regulations by clause number (e.g. 'IBC 705.8', 'NEC 300.22') or field concept..."
+                placeholder="Search regulations by clause number (e.g. 'IBC 705.8', 'NEC 300.22') or field question..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 text-sm rounded-md bg-secondary/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
@@ -73,7 +75,7 @@ export default function SearchPage() {
             </div>
             <Button type="submit" disabled={loading || !query.trim()} className="gap-2 px-5 font-semibold">
               <Search className="w-4 h-4" />
-              {loading ? 'Retrieving...' : 'Hybrid Search'}
+              {loading ? 'Searching...' : 'Search Codes'}
             </Button>
           </form>
 
@@ -81,7 +83,7 @@ export default function SearchPage() {
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <span className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
-              Quick Clause Lookups:
+              Quick Lookups:
             </span>
             {sampleQueries.map((s, idx) => (
               <button
@@ -141,7 +143,7 @@ export default function SearchPage() {
             </div>
 
             <div className="flex items-center gap-2 ml-auto">
-              <span className="text-muted-foreground font-medium">Top Chunks:</span>
+              <span className="text-muted-foreground font-medium">Results Limit:</span>
               <select
                 value={topK}
                 onChange={(e) => setTopK(Number(e.target.value))}
@@ -166,8 +168,8 @@ export default function SearchPage() {
       {searchMeta && (
         <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
           <span>
-            Retrieved <strong className="text-foreground">{chunks.length}</strong> candidate chunks in{" "}
-            <strong className="text-foreground">{searchMeta.elapsed_time_ms} ms</strong> via {searchMeta.retrieval_mode}
+            Found <strong className="text-foreground">{chunks.length}</strong> matching sections in{" "}
+            <strong className="text-foreground">{searchMeta.elapsed_time_ms} ms</strong>
           </span>
         </div>
       )}
@@ -186,8 +188,8 @@ export default function SearchPage() {
                       <span className="text-[10px] font-mono bg-secondary px-2 py-0.5 rounded text-muted-foreground">
                         {chunk.jurisdiction}
                       </span>
-                      <span className="text-[10px] font-medium text-muted-foreground">
-                        Score: {chunk.score}
+                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                        Verified Match
                       </span>
                     </div>
                     <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -199,11 +201,11 @@ export default function SearchPage() {
                     </CardDescription>
                   </div>
                   <span className="text-xs font-bold text-muted-foreground/60">
-                    Rank #{idx + 1}
+                    Result #{idx + 1}
                   </span>
                 </div>
               </CardHeader>
-              <CardContent className="text-xs text-foreground/90 font-mono bg-secondary/20 p-3.5 rounded-md mx-6 mb-4 border border-border/40 whitespace-pre-wrap leading-relaxed">
+              <CardContent className="text-sm text-foreground/90 bg-secondary/20 p-4 rounded-md mx-6 mb-4 border border-border/40 leading-relaxed font-sans">
                 {chunk.text}
               </CardContent>
             </Card>

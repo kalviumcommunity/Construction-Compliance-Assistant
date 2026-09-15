@@ -2,13 +2,15 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Sparkles, Zap, HardHat, Flame, Droplets } from 'lucide-react';
-import { api, API_BASE } from '@/lib/api';
-
-export const PROJECTS = [
-  { id: 'skyline', name: 'Skyline Commercial Tower', phase: 'Phase 3 (Core & Shell)', location: 'Seattle, WA', code: 'IBC 2024 / NEC 2023' },
-  { id: 'harbor', name: 'Harbor Point Medical Pavilion', phase: 'Phase 2 (MEP Rough-in)', location: 'San Francisco, CA', code: 'CBC Title 24 / OSHPD' },
-  { id: 'midtown', name: 'Midtown Mixed-Use Residences', phase: 'Phase 1 (Podium & Framing)', location: 'New York, NY', code: 'NYC Construction Codes' },
-];
+import {
+  api,
+  API_BASE,
+  useProjects,
+  useQueryHistory,
+  useIndexedDocuments,
+  useSystemHealth,
+  Project,
+} from '@/lib/api';
 
 export const CATEGORIZED_SCENARIOS = [
   { category: 'All', label: 'All Scenarios', icon: Sparkles },
@@ -23,8 +25,11 @@ export const PRESET_SCENARIOS = [
   { id: 2, title: 'Post-Tensioned Concrete PSI Break Test', trade: 'Structural', category: 'Structural', query: 'Cylinder break tests achieved 4,850 psi at 28 days for elevated post-tensioned deck slab. Is this compliant with project specs?', jurisdiction: 'National', docType: 'Project Spec', statusHint: 'Approved', hintColor: 'pass' },
   { id: 3, title: 'Firestop Sealant in 2-Hour Rated Wall', trade: 'Fire Safety', category: 'Fire Safety', query: 'Subcontractor packed 4-inch pipe penetration through 2-hour shear wall with bare ceramic wool only, omitting intumescent sealant.', jurisdiction: 'National', docType: 'Code', statusHint: 'Violation', hintColor: 'fail' },
   { id: 4, title: 'Drainage DWV Hydrostatic Pressure Test', trade: 'Plumbing', category: 'Plumbing', query: 'Did our 30-minute hydrostatic water test with 42-foot static head satisfy the rough drainage and vent inspection requirements?', jurisdiction: 'National', docType: 'Code', statusHint: 'Approved', hintColor: 'pass' },
-  { id: 5, title: 'Egress Stairway Clear Width Between Handrails', trade: 'Structural', category: 'Structural', query: 'Egress stairway serving 120 building occupants has clear finished width of 40 inches between handrails. Is this compliant?', jurisdiction: 'National', docType: 'Code', statusHint: 'Non-Compliant', hintColor: 'fail' },
-  { id: 6, title: 'Acoustic Panel Fabric Specification Clarification', trade: 'All', category: 'All', query: 'What is the required thickness of acoustic fabric wrap for executive conference room acoustic wood panels?', jurisdiction: 'All', docType: 'All', statusHint: 'Needs Details', hintColor: 'warn' },
+  { id: 5, title: 'OSHA Fall Protection Guardrail Height', trade: 'Structural', category: 'Structural', query: 'Perimeter top guardrail was erected at 42 inches above the walking deck and withstands 200 lbs force. Does this satisfy OSHA 1926.502 requirements?', jurisdiction: 'National', docType: 'Code', statusHint: 'Approved', hintColor: 'pass' },
+  { id: 6, title: 'Ductwork Acoustic Liner Flame Spread', trade: 'Fire Safety', category: 'Fire Safety', query: 'Contractor installed 1-inch fiberglass acoustic duct liner inside the return air plenum with ASTM E84 flame-spread index of 20 and smoke-developed index of 45. Does this comply with Project Spec Division 23 07 13?', jurisdiction: 'National', docType: 'Project Spec', statusHint: 'Approved', hintColor: 'pass' },
+  { id: 7, title: 'California Title 24 Lighting Shut-Off', trade: 'Electrical', category: 'Electrical', query: 'Are commercial offices required to have automatic shut-off occupancy sensors configured to turn lights off within 20 minutes under California Title 24 Section 130.1?', jurisdiction: 'California', docType: 'Code', statusHint: 'Mandatory', hintColor: 'pass' },
+  { id: 8, title: 'Medical Gas Brazing Nitrogen Purge', trade: 'Plumbing', category: 'Plumbing', query: 'During brazing of copper medical gas piping, subcontractor utilized BCuP filler metal with a continuous oil-free dry nitrogen purge. Does this comply with Division 22 61 00?', jurisdiction: 'National', docType: 'Project Spec', statusHint: 'Compliant', hintColor: 'pass' },
+  { id: 9, title: 'Egress Stairway Clear Width Between Handrails', trade: 'Structural', category: 'Structural', query: 'Egress stairway serving 120 building occupants has clear finished width of 40 inches between handrails. Is this compliant?', jurisdiction: 'National', docType: 'Code', statusHint: 'Non-Compliant', hintColor: 'fail' },
 ];
 
 type AssistantContextType = {
@@ -44,6 +49,7 @@ type AssistantContextType = {
   setShowFilters: (val: boolean) => void;
   currentProject: any;
   setCurrentProject: (val: any) => void;
+  projects: Project[];
   loading: boolean;
   loadingStep: number;
   result: any;
@@ -83,48 +89,59 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
   const [docType, setDocType] = useState('All');
   const [searchThoroughness, setSearchThoroughness] = useState(5);
   const [showFilters, setShowFilters] = useState(false);
-  
-  const [currentProject, setCurrentProject] = useState(PROJECTS[0]);
-  
+
+  // Dynamic projects fetched from live backend
+  const { projects } = useProjects();
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+
+  const currentProject = useMemo(() => {
+    if (selectedProject) return selectedProject;
+    if (projects && projects.length > 0) {
+      return (
+        projects.find((p) => p.status === 'active') || projects[0]
+      );
+    }
+    return {
+      id: 'active-site',
+      name: 'Active Project Portfolio',
+      location: 'Primary Jobsite',
+      phase: 'Construction QA/QC',
+      active_codes: ['IBC 2024', 'NEC 2023', 'UPC 2024'],
+    };
+  }, [selectedProject, projects]);
+
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [activeTab, setActiveTab] = useState('summary');
   const [completedActions, setCompletedActions] = useState<Record<number, boolean>>({});
-  const [queryHistory, setQueryHistory] = useState<any[]>([]);
-  
+
+  // Dynamic query history, indexed documents, and system health from live backend
+  const { history: liveHistory, mutate: mutateHistory } = useQueryHistory();
+  const { documents: indexedDocs, isLoading: loadingDocs, mutate: mutateDocs } = useIndexedDocuments();
+  const { health: backendHealth } = useSystemHealth();
+
+  const [localHistory, setLocalHistory] = useState<any[]>([]);
+
+  // Synchronize dynamic history with local additions
+  const queryHistory = useMemo(() => {
+    if (liveHistory && liveHistory.length > 0) {
+      return liveHistory;
+    }
+    return localHistory;
+  }, [liveHistory, localHistory]);
+
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [showCodebookModal, setShowCodebookModal] = useState(false);
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
-  
-  const [backendHealth, setBackendHealth] = useState<any>(null);
-  const [indexedDocs, setIndexedDocs] = useState<any[]>([]);
-  const [loadingDocs, setLoadingDocs] = useState(false);
+
   const [docSearchQuery, setDocSearchQuery] = useState('');
 
-  useEffect(() => {
-    fetch(`${API_BASE}/api/health`)
-      .then(res => res.json())
-      .then(data => setBackendHealth(data))
-      .catch(() => setBackendHealth({ status: 'offline' }));
-  }, []);
-
-  const fetchIndexedDocuments = async () => {
-    setLoadingDocs(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/documents`);
-      if (res.ok) {
-        const data = await res.json();
-        setIndexedDocs(data);
-      }
-    } catch (err) {
-      console.error('Failed to load codebooks:', err);
-    } finally {
-      setLoadingDocs(false);
-    }
+  const fetchIndexedDocuments = () => {
+    mutateDocs();
   };
 
   const handleApplyPreset = (preset: any) => {
@@ -161,10 +178,10 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
         top_k: searchThoroughness,
       });
 
-      setResult(data);
+      setResult({ ...data, query: data.query || query.trim() });
       setActiveTab('summary');
 
-      setQueryHistory((prev) => [
+      setLocalHistory((prev) => [
         {
           id: Date.now(),
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -177,6 +194,7 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
         },
         ...prev.slice(0, 14),
       ]);
+      mutateHistory();
     } catch (err: any) {
       setError(err.message || 'Unable to connect to the building code library.');
     } finally {
@@ -197,11 +215,12 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
         docType, setDocType,
         searchThoroughness, setSearchThoroughness,
         showFilters, setShowFilters,
-        currentProject, setCurrentProject,
+        currentProject, setCurrentProject: setSelectedProject,
+        projects: projects || [],
         loading, loadingStep, result, error,
         activeTab, setActiveTab,
         completedActions, setCompletedActions,
-        queryHistory, setQueryHistory,
+        queryHistory, setQueryHistory: setLocalHistory,
         showPrintModal, setShowPrintModal,
         showNoticeModal, setShowNoticeModal,
         showCodebookModal, setShowCodebookModal,

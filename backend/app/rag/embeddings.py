@@ -47,7 +47,7 @@ def get_dense_embeddings_fn() -> Tuple[Callable[[List[str]], List[List[float]]],
                 if gemini_key:
                     os.environ["GEMINI_API_KEY"] = gemini_key
 
-                client = genai.Client()
+                client = genai.Client(http_options=types.HttpOptions(timeout=60000))
                 logger.info(f"Initializing Google Gemini GA SDK embeddings ({settings.GEMINI_EMBEDDING_MODEL}, dim 768)...")
 
                 def embed_texts(texts: List[str]) -> List[List[float]]:

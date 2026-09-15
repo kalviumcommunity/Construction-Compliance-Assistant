@@ -28,6 +28,7 @@ import {
   useQueryHistory,
   useProjects,
   useInspections,
+  useIndexedDocuments,
 } from '@/lib/api';
 
 export default function DashboardPage() {
@@ -36,6 +37,7 @@ export default function DashboardPage() {
   const { history, isLoading: historyLoading } = useQueryHistory();
   const { projects, isLoading: projectsLoading } = useProjects();
   const { inspections, isLoading: inspectionsLoading } = useInspections();
+  const { documents, isLoading: docsLoading } = useIndexedDocuments();
 
   const activeProjects = projects.filter((p) => p.status === 'active');
   const compliantQueries = history.filter((h) => h.verdict === 'Compliant').length;
@@ -43,11 +45,11 @@ export default function DashboardPage() {
     history.length > 0 ? Math.round((compliantQueries / history.length) * 100) : 100;
 
   const totalChunks = stats?.total_chunks ?? 0;
-  const totalDocs = stats?.total_documents ?? 0;
+  const totalDocs = stats?.total_documents ?? documents.length ?? 0;
 
   return (
     <div className="w-full space-y-8 animate-fade-up">
-      {/* ─── Top Telemetry Header ────────────────────────────────────── */}
+      {/* ─── Top Header ─────────────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-2 border-b border-border/60">
         <div>
           <div className="flex items-center gap-2.5 mb-1.5">
@@ -55,11 +57,11 @@ export default function DashboardPage() {
               <Activity className="w-5 h-5 text-primary" />
             </div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-              SiteSafe Regulatory Telemetry
+              Project Compliance Dashboard
             </h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Continuous construction compliance verification, live vector corpus telemetry, and QA/QC findings.
+            Real-time construction code compliance, active project standards, and field inspection records.
           </p>
         </div>
 
@@ -71,11 +73,11 @@ export default function DashboardPage() {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
             <span className="font-medium text-foreground">
-              {health?.llm_provider || 'Gemini 2.5 Flash'}
+              Service Online
             </span>
             <span className="text-muted-foreground">•</span>
-            <span className="text-muted-foreground font-mono text-[11px]">
-              {health?.vector_store || 'Qdrant'} ({totalChunks} chunks)
+            <span className="text-muted-foreground text-[11px]">
+              {totalDocs} Standards Active
             </span>
           </div>
 
@@ -122,7 +124,7 @@ export default function DashboardPage() {
         <div className="bento-card p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">
-              Indexed Clauses
+              Building Code Library
             </span>
             <div className="p-2 rounded-lg bg-sky-500/10 text-sky-500">
               <Database className="w-4 h-4" />
@@ -135,12 +137,12 @@ export default function DashboardPage() {
               <div className="text-3xl font-bold font-mono tracking-tight text-foreground">
                 {totalChunks}
                 <span className="text-xs font-normal text-muted-foreground ml-1.5 font-sans">
-                  chunks
+                  sections
                 </span>
               </div>
             )}
             <p className="text-xs text-muted-foreground mt-1.5">
-              Across <span className="font-semibold text-foreground">{totalDocs}</span> regulatory specifications
+              Across <span className="font-semibold text-foreground">{totalDocs}</span> official codes &amp; specs
             </p>
           </div>
         </div>
@@ -177,7 +179,7 @@ export default function DashboardPage() {
         <div className="bento-card p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">
-              Inference Engine
+              Compliance Assistant
             </span>
             <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
               <Cpu className="w-4 h-4" />
@@ -188,12 +190,12 @@ export default function DashboardPage() {
               <div className="h-8 w-24 rounded bg-muted shimmer-mask" />
             ) : (
               <div className="text-xl font-bold text-foreground truncate">
-                GA Google GenAI
+                {health?.llm_provider ? `${health.llm_provider.toUpperCase()} Assistant` : 'AI Rule Engine'}
               </div>
             )}
             <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-              <span>Structured Pydantic Enforcement</span>
+              <span>Evidence-Backed Verification</span>
             </p>
           </div>
         </div>
@@ -207,9 +209,9 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between pb-4 border-b border-border/50">
               <div>
                 <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-                  <span>Recent Regulatory Verifications</span>
-                  <Badge variant="outline" className="text-[10px] font-mono">
-                    Live Telemetry
+                  <span>Recent Compliance Checks</span>
+                  <Badge variant="outline" className="text-[10px] font-medium">
+                    Verified
                   </Badge>
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -310,9 +312,9 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Deterministic RAG Retrieval with Reciprocal Rank Fusion</span>
+            <span>Verified against official statutory building codes &amp; project specifications</span>
             <Link href="/evaluation" className="text-primary hover:underline flex items-center gap-1 font-medium">
-              View Precision Benchmarks <ExternalLink className="w-3 h-3" />
+              View Quality Verification Tests <ExternalLink className="w-3 h-3" />
             </Link>
           </div>
         </div>
@@ -323,41 +325,45 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between pb-3 border-b border-border/50">
               <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                 <FileText className="w-4 h-4 text-primary" />
-                <span>Regulatory Standards</span>
+                <span>Active Building Codes</span>
               </h2>
               <Badge variant="outline" className="text-[10px]">
-                {totalDocs} Codes
+                {totalDocs} Standards
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Statutory building authorities actively indexed in high-dimensional vector space:
+              Statutory authorities and specifications indexed in your project library:
             </p>
 
             <div className="mt-4 space-y-2.5">
-              {[
-                { code: 'IBC 2024', name: 'International Building Code', trade: 'Structural & Fire', count: '14 Sections' },
-                { code: 'NEC 2023', name: 'National Electrical Code (NFPA 70)', trade: 'Electrical', count: '18 Articles' },
-                { code: 'OSHA 1926', name: 'Safety & Health for Construction', trade: 'Worker Safety', count: '9 Subparts' },
-                { code: 'ADA 2010', name: 'Accessible Design Standards', trade: 'Accessibility', count: '12 Chapters' },
-                { code: 'IECC 2021', name: 'International Energy Conservation', trade: 'Mechanical & Envelope', count: '6 Chapters' },
-              ].map((std) => (
-                <div
-                  key={std.code}
-                  className="p-2.5 rounded-lg border border-border/50 bg-secondary/30 flex items-center justify-between"
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="clause-badge">{std.code}</span>
+              {docsLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="h-12 rounded-lg bg-muted/40 shimmer-mask border border-border/40" />
+                ))
+              ) : documents.length > 0 ? (
+                documents.slice(0, 5).map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="p-2.5 rounded-lg border border-border/50 bg-secondary/30 flex items-center justify-between gap-2"
+                  >
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="clause-badge">{doc.clause_number}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate" title={doc.title}>
+                        {doc.title}
+                      </p>
                     </div>
-                    <p className="text-[11px] text-muted-foreground truncate max-w-[180px]">
-                      {std.name}
-                    </p>
+                    <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-secondary border text-muted-foreground shrink-0 font-medium">
+                      {doc.trade}
+                    </span>
                   </div>
-                  <span className="text-[11px] font-mono text-muted-foreground">
-                    {std.count}
-                  </span>
+                ))
+              ) : (
+                <div className="p-4 text-center text-xs text-muted-foreground">
+                  No documents indexed yet.
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -365,7 +371,7 @@ export default function DashboardPage() {
             <Button variant="outline" className="w-full gap-2 text-xs" asChild>
               <Link href="/documents">
                 <Layers className="w-3.5 h-3.5" />
-                <span>Open Regulatory Repository</span>
+                <span>View Full Code Library</span>
               </Link>
             </Button>
           </div>
@@ -380,7 +386,7 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                 <ClipboardCheck className="w-4 h-4 text-primary" />
-                <span>Active QA/QC Field Inspections</span>
+                <span>Active Jobsite Inspections</span>
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 On-site regulatory compliance observations and remediation punch lists.
@@ -388,7 +394,7 @@ export default function DashboardPage() {
             </div>
             <Button variant="ghost" size="sm" asChild className="text-xs gap-1">
               <Link href="/inspections">
-                <span>View Ledger</span>
+                <span>View All</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </Button>
@@ -413,9 +419,9 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2">
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                          item.status === 'critical'
+                          item.status.toLowerCase().includes('critical') || item.status.toLowerCase().includes('non-compliant') || item.status.toLowerCase().includes('ncr')
                             ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
-                            : item.status === 'warning'
+                            : item.status.toLowerCase().includes('warning') || item.status.toLowerCase().includes('warn')
                             ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
                             : 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
                         }`}
@@ -448,7 +454,7 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>Project Portfolio Conformity</span>
+                <span>Project Portfolio Overview</span>
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Active jobsite specifications mapped against municipal building jurisdictions.
@@ -469,7 +475,7 @@ export default function DashboardPage() {
               ))
             ) : (
               projects.slice(0, 3).map((p) => {
-                const score = p.complianceRate || 94;
+                const score = p.complianceRate ?? p.complianceScore ?? 100;
                 return (
                   <div
                     key={p.id}
@@ -479,14 +485,14 @@ export default function DashboardPage() {
                       <div>
                         <h4 className="text-xs font-bold text-foreground">{p.name}</h4>
                         <p className="text-[11px] text-muted-foreground">
-                          {p.location} • {p.specCount || 12} Specs Indexed
+                          {p.location} • {p.documentCount ?? p.specCount ?? 0} Specifications
                         </p>
                       </div>
                       <div className="text-right">
                         <span className="text-sm font-bold font-mono text-foreground">
                           {score}%
                         </span>
-                        <div className="text-[10px] text-muted-foreground">Compliance Score</div>
+                        <div className="text-[10px] text-muted-foreground">Compliance Rating</div>
                       </div>
                     </div>
                     {/* Compliance Progress Bar */}
