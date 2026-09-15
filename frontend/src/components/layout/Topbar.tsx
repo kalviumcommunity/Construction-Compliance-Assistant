@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Sidebar } from './Sidebar';
 import { useSystemHealth, useProjects } from '@/lib/api';
+import { Plus } from 'lucide-react';
 
 export function Topbar() {
   const { health } = useSystemHealth();
@@ -26,6 +27,7 @@ export function Topbar() {
     <header className="h-16 border-b border-border/70 glass flex items-center justify-between px-4 sm:px-6 sticky top-0 z-10 shrink-0 shadow-xs">
       {/* ─── Left Section: Mobile Trigger & Active Project ───────────── */}
       <div className="flex items-center gap-3">
+        {/* Mobile Drawer Trigger */}
         <div className="md:hidden">
           <Sheet>
             <SheetTrigger asChild>
@@ -34,7 +36,7 @@ export function Topbar() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-64 border-r border-border">
-              <Sidebar />
+              <Sidebar forceExpanded />
             </SheetContent>
           </Sheet>
         </div>
@@ -50,20 +52,36 @@ export function Topbar() {
         </div>
 
         {/* Desktop Active Project Pill */}
-        <div className="hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-secondary/50 border border-border/60 text-xs">
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Building2 className="w-3.5 h-3.5 text-primary" />
-            <span className="font-medium text-[11px] uppercase tracking-wider">Project:</span>
-          </div>
-          <span className="font-semibold text-foreground">
-            {activeProject ? `${activeProject.name} (${activeProject.location})` : 'Active Project Portfolio'}
-          </span>
-          <span className="text-muted-foreground font-mono text-[10.5px]">•</span>
-          <span className="text-emerald-500 font-medium text-[11px] flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-            {activeProject?.active_codes?.[0] || 'Official Codes Synced'}
-          </span>
-        </div>
+        {activeProject ? (
+          <Link
+            href="/projects"
+            className="hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-secondary/50 hover:bg-secondary/75 border border-border/60 text-xs transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Building2 className="w-3.5 h-3.5 text-primary" />
+              <span className="font-medium text-[11px] uppercase tracking-wider">Project:</span>
+            </div>
+            <span className="font-semibold text-foreground truncate max-w-[200px]">
+              {activeProject.name} ({activeProject.location})
+            </span>
+            <span className="text-muted-foreground font-mono text-[10.5px]">•</span>
+            <span className="text-emerald-500 font-medium text-[11px] flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+              {activeProject?.active_codes?.[0] || 'Official Codes Synced'}
+            </span>
+          </Link>
+        ) : (
+          <Link
+            href="/projects"
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/30 hover:bg-secondary/60 border border-dashed border-border/80 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+          >
+            <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="font-medium text-foreground">No Active Project</span>
+            <span className="text-[10px] font-semibold text-primary px-1.5 py-0.2 rounded bg-primary/10 border border-primary/20 flex items-center gap-0.5">
+              <Plus className="w-2.5 h-2.5" /> New Project
+            </span>
+          </Link>
+        )}
       </div>
 
       {/* ─── Right Section: Search, Telemetry & Profile ──────────────── */}

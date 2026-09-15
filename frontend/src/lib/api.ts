@@ -216,18 +216,64 @@ export const api = {
       name: p.name,
       location: p.location,
       status: p.status,
-      documentCount: p.document_count ?? 12,
-      specCount: p.document_count ?? 12,
-      document_count: p.document_count ?? 12,
-      complianceScore: p.compliance_score ?? 94,
-      complianceRate: p.compliance_score ?? 94,
-      compliance_score: p.compliance_score ?? 94,
+      documentCount: p.document_count ?? 0,
+      specCount: p.document_count ?? 0,
+      document_count: p.document_count ?? 0,
+      complianceScore: p.compliance_score ?? 100,
+      complianceRate: p.compliance_score ?? 100,
+      compliance_score: p.compliance_score ?? 100,
       lastUpdated: p.last_updated,
       lastAudit: p.last_updated,
       activeCodes: p.active_codes || [],
       active_codes: p.active_codes || [],
     }));
   },
+
+  createProject: async (payload: {
+    name: string;
+    location: string;
+    status?: string;
+    active_codes?: string[];
+  }): Promise<Project> => {
+    const res = await fetch(`${API_BASE}/api/projects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.message || `Failed to create project (${res.status})`);
+    }
+    const p = await res.json();
+    return {
+      id: p.id,
+      name: p.name,
+      location: p.location,
+      status: p.status,
+      documentCount: p.document_count ?? 0,
+      specCount: p.document_count ?? 0,
+      document_count: p.document_count ?? 0,
+      complianceScore: p.compliance_score ?? 100,
+      complianceRate: p.compliance_score ?? 100,
+      compliance_score: p.compliance_score ?? 100,
+      lastUpdated: p.last_updated,
+      lastAudit: p.last_updated,
+      activeCodes: p.active_codes || [],
+      active_codes: p.active_codes || [],
+    };
+  },
+
+  deleteProject: async (projectId: string): Promise<{ status: string; message: string; deleted_id: string }> => {
+    const res = await fetch(`${API_BASE}/api/projects/${projectId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.message || `Failed to delete project (${res.status})`);
+    }
+    return await res.json();
+  },
+
 
   getDocuments: async (): Promise<Document[]> => {
     const summaries = await api.getIndexedDocuments();
@@ -338,7 +384,24 @@ export function useProjects() {
     async () => api.getProjects(),
     { revalidateOnFocus: true }
   );
-  return { projects: data || [], error, isLoading, mutate };
+
+  const createProject = async (payload: {
+    name: string;
+    location: string;
+    status?: string;
+    active_codes?: string[];
+  }) => {
+    const created = await api.createProject(payload);
+    await mutate((prev) => (prev ? [...prev, created] : [created]), { revalidate: true });
+    return created;
+  };
+
+  const deleteProject = async (projectId: string) => {
+    await api.deleteProject(projectId);
+    await mutate((prev) => (prev ? prev.filter((p) => p.id !== projectId) : []), { revalidate: true });
+  };
+
+  return { projects: data || [], error, isLoading, mutate, createProject, deleteProject };
 }
 
 export function useInspections() {

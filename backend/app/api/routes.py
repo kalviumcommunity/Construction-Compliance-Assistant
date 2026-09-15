@@ -23,6 +23,8 @@ from app.models.schemas import (
     QueryHistoryItem,
     ProjectSummary,
     InspectionFinding,
+    CreateProjectRequest,
+    DeleteProjectResponse,
 )
 from app.rag.pipeline import rag_pipeline
 from app.api.security import (
@@ -79,54 +81,10 @@ _query_history: List[QueryHistoryItem] = [
     ),
 ]
 
-_projects_store: List[ProjectSummary] = [
-    ProjectSummary(
-        id="p-aurora-2026",
-        name="Aurora Horizon Life Sciences & Innovation Center",
-        location="Cambridge, MA",
-        status="active",
-        document_count=28,
-        last_updated="2026-09-15",
-        compliance_score=98,
-        active_codes=["IBC 2024", "NFPA 70 / NEC 2023", "UPC 2024", "NFPA 99 Healthcare"],
-    ),
-]
+_projects_store: List[ProjectSummary] = []
 
-_inspections_store: List[InspectionFinding] = [
-    InspectionFinding(
-        id="ir-2026-098",
-        project_id="p-aurora-2026",
-        date="2026-09-12",
-        inspector="Michael Chang (PE, Senior Electrical Auditor)",
-        status="Non-Compliant / NCR Issued",
-        findings_count=1,
-        trade="Electrical",
-        description="Type CMR riser-rated cable routed through ceiling plenum return without metallic conduit encasement.",
-        clause_reference="NEC § 300.22(C)(1)",
-    ),
-    InspectionFinding(
-        id="ir-2026-092",
-        project_id="p-aurora-2026",
-        date="2026-09-08",
-        inspector="David Vance (Senior Structural Inspector)",
-        status="Passed / Approved",
-        findings_count=0,
-        trade="Structural",
-        description="Perimeter fall protection guardrail top rails verified at 42 inches above walking deck withstanding 200 lbs force.",
-        clause_reference="OSHA 1926.502(b)(1)",
-    ),
-    InspectionFinding(
-        id="ir-2026-095",
-        project_id="p-aurora-2026",
-        date="2026-09-07",
-        inspector="Carlos Rivera (Plumbing Inspector)",
-        status="Passed / Approved",
-        findings_count=0,
-        trade="Plumbing",
-        description="Medical gas distribution line brazing witnessed with continuous dry nitrogen purge below 1.0% oxygen.",
-        clause_reference="Spec 22 61 00 § 3.01",
-    ),
-]
+_inspections_store: List[InspectionFinding] = []
+
 
 
 @router.get("/health", response_model=SystemHealthResponse, tags=["System"])
@@ -240,6 +198,51 @@ async def get_query_history():
 async def get_active_projects():
     """Returns active projects and their code compliance portfolio."""
     return _projects_store
+
+
+@router.post("/projects", response_model=ProjectSummary, status_code=status.HTTP_201_CREATED, tags=["Projects"])
+async def create_project(req: CreateProjectRequest):
+    """Creates a new construction project portfolio."""
+    clean_name = req.name.strip()
+    clean_loc = req.location.strip()
+    slug = re.sub(r"[^a-zA-Z0-9]", "", clean_name)[:8].lower() or "site"
+    new_id = f"proj-{int(time.time())}-{slug}"
+
+    project = ProjectSummary(
+        id=new_id,
+        name=clean_name,
+        location=clean_loc,
+        status=req.status or "active",
+        document_count=0,
+        last_updated=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        compliance_score=100,
+        active_codes=req.active_codes if req.active_codes else ["IBC 2024", "NFPA 70 / NEC 2023"],
+    )
+    _projects_store.append(project)
+    return project
+
+
+@router.delete("/projects/{project_id}", response_model=DeleteProjectResponse, tags=["Projects"])
+async def delete_project(project_id: str):
+    """Deletes a project portfolio by ID and clears associated records."""
+    global _projects_store, _inspections_store
+    initial_len = len(_projects_store)
+    _projects_store = [p for p in _projects_store if p.id != project_id]
+    if len(_projects_store) == initial_len:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project with ID '{project_id}' not found.",
+        )
+
+    # Clean up associated inspections
+    _inspections_store = [i for i in _inspections_store if i.project_id != project_id]
+
+    return DeleteProjectResponse(
+        status="success",
+        message=f"Project '{project_id}' was successfully deleted.",
+        deleted_id=project_id,
+    )
+
 
 
 @router.get("/inspections", response_model=List[InspectionFinding], tags=["Inspections"])

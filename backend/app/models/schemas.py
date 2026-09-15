@@ -172,6 +172,20 @@ class ProjectSummary(BaseModel):
     active_codes: List[str] = []
 
 
+class CreateProjectRequest(BaseModel):
+    name: str = Field(..., min_length=2, description="Project name or jobsite title")
+    location: str = Field(..., min_length=2, description="City, State or jurisdictional area")
+    status: str = Field("active", description="Project status: active, planning, or completed")
+    active_codes: List[str] = Field(default_factory=list, description="Active building codes & specifications")
+
+
+class DeleteProjectResponse(BaseModel):
+    status: str = "success"
+    message: str
+    deleted_id: str
+
+
+
 class InspectionFinding(BaseModel):
     id: str
     project_id: str
