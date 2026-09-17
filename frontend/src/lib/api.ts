@@ -1,7 +1,7 @@
 import { Project, Document, QueryHistory, Inspection } from "@/types";
 export type { Project, Document, QueryHistory, Inspection };
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 export const DEFAULT_INGEST_KEY = process.env.NEXT_PUBLIC_INGEST_API_KEY || "sitesafe-admin-key-2026";
 
 // ---------------------------------------------------------------------------
@@ -11,6 +11,7 @@ export const DEFAULT_INGEST_KEY = process.env.NEXT_PUBLIC_INGEST_API_KEY || "sit
 export type ComplianceVerdict = "Compliant" | "Non-Compliant" | "Ambiguous/Insufficient Data";
 
 export interface Citation {
+  citation_index?: number;
   clause_number: string;
   document_title: string;
   document_type: string;
@@ -19,6 +20,20 @@ export interface Citation {
   page_or_section: string;
   direct_quote: string;
   relevance_explanation: string;
+  document_filename?: string;
+  chunk_id?: string;
+  chunk_index?: number;
+}
+
+export interface QuerySourceInfo {
+  document: string;
+  document_filename?: string;
+  chunk_id: string;
+  chunk_index: number;
+  clause_number: string;
+  page: string;
+  trade: string;
+  direct_quote: string;
 }
 
 export interface RetrievedChunkInfo {
@@ -31,6 +46,8 @@ export interface RetrievedChunkInfo {
   page_or_section: string;
   text: string;
   score: number;
+  document_filename?: string;
+  chunk_index?: number;
 }
 
 export interface ComplianceResponse {
@@ -55,6 +72,40 @@ export interface ComplianceResponse {
     rewritten_query?: string;
     was_rewritten?: boolean;
   };
+}
+
+export interface StructuredQueryResponse {
+  status: "success" | "refusal";
+  answer: string;
+  verdict: ComplianceVerdict;
+  confidence_score: number;
+  summary: string;
+  technical_analysis: string;
+  sources: QuerySourceInfo[];
+  citations: Citation[];
+  recommended_actions: string[];
+  metadata: {
+    elapsed_time_ms?: number;
+    chunks_retrieved?: number;
+    filters_applied?: {
+      trade?: string;
+      jurisdiction?: string;
+      document_type?: string;
+      top_k?: number;
+    };
+    retrieval_mode?: string;
+    rewritten_query?: string;
+    was_rewritten?: boolean;
+  };
+}
+
+export interface SimpleQueryRequest {
+  question: string;
+  trade?: string;
+  jurisdiction?: string;
+  document_type?: string;
+  top_k?: number;
+  conversation_history?: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
 export interface ComplianceQueryRequest {
@@ -116,6 +167,40 @@ import useSWR from "swr";
 
 export const api = {
   /**
+   * Primary RAG Query API endpoint POST /api/query
+   */
+  query: async (payload: SimpleQueryRequest, timeoutMs = 45000): Promise<StructuredQueryResponse> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || errData.message || `API Error (HTTP ${res.status})`);
+      }
+
+      return await res.json();
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        throw new Error("Request timed out after 45 seconds. Regulatory retrieval and synthesis took longer than expected. Please retry.");
+      }
+      if (err.message && err.message.includes("Failed to fetch")) {
+        throw new Error(`Cannot reach backend server at ${API_BASE}. Please verify that the FastAPI backend is running.`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  },
+
+  /**
    * Evaluates compliance against live RAG backend with 45-second timeout.
    */
   verifyCompliance: async (payload: ComplianceQueryRequest, timeoutMs = 45000): Promise<ComplianceResponse> => {
@@ -139,6 +224,9 @@ export const api = {
     } catch (err: any) {
       if (err.name === "AbortError") {
         throw new Error("Request timed out after 45 seconds. Regulatory retrieval and synthesis took longer than expected. Please retry.");
+      }
+      if (err.message && err.message.includes("Failed to fetch")) {
+        throw new Error(`Cannot reach backend server at ${API_BASE}. Please verify that the FastAPI backend is running.`);
       }
       throw err;
     } finally {

@@ -178,8 +178,8 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
     const currentQuery = query.trim();
 
     try {
-      const data = await api.verifyCompliance({
-        query: currentQuery,
+      const data = await api.query({
+        question: currentQuery,
         trade,
         jurisdiction,
         document_type: docType,
@@ -187,14 +187,33 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
         conversation_history: conversationTurns.slice(-6),
       });
 
-      setResult({ ...data, query: data.query || currentQuery });
+      const retrievedChunks = (data.sources || []).map((s, idx) => ({
+        chunk_id: s.chunk_id || `chunk_${idx}`,
+        doc_title: s.document,
+        document_filename: s.document_filename || s.document,
+        clause_number: s.clause_number,
+        document_type: 'Code',
+        trade: s.trade || 'General',
+        jurisdiction: 'National',
+        page_or_section: s.page,
+        text: s.direct_quote,
+        score: 1.0,
+        chunk_index: s.chunk_index ?? idx,
+      }));
+
+      setResult({
+        ...data,
+        query: currentQuery,
+        search_metadata: data.metadata || {},
+        retrieved_chunks: retrievedChunks,
+      });
       setActiveTab('summary');
 
       // Update multi-turn conversation history
       setConversationTurns((prev) => [
         ...prev,
         { role: 'user', content: currentQuery },
-        { role: 'assistant', content: data.summary },
+        { role: 'assistant', content: data.summary || data.answer },
       ]);
 
       setLocalHistory((prev) => [
