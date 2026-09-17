@@ -79,6 +79,10 @@ class ComplianceQueryRequest(BaseModel):
     jurisdiction: Optional[str] = Field("All", description="Target statutory jurisdiction: National, California, NYC, or All.")
     document_type: Optional[str] = Field("All", description="Scope: Code, Project Spec, Inspection Log, or All.")
     top_k: int = Field(5, ge=1, le=20, description="Maximum number of candidate chunks to retrieve.")
+    conversation_history: Optional[List[Dict[str, str]]] = Field(
+        default_factory=list,
+        description="Prior conversation turns as a list of dicts with 'role' ('user'|'assistant') and 'content'.",
+    )
 
 
 class ComplianceResponse(BaseModel):

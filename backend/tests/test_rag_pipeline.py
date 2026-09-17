@@ -605,6 +605,129 @@ def test_hallucination_guardrail_threshold_config():
     assert out.citations == []
 
 
+def test_conversational_followup_query_detection():
+    """Verifies that ConversationalQueryRewriter correctly detects follow-up queries."""
+    from app.rag.query_rewriter import ConversationalQueryRewriter
+
+    rewriter = ConversationalQueryRewriter()
+    history = [{"role": "user", "content": "Can we install 1-inch Schedule 40 PVC conduit for low-voltage controls in the drop-ceiling return air plenum?"}]
+
+    # Pronoun / follow-up queries
+    assert rewriter.is_followup_query("What are its main prohibitions under NEC 300.22?", history) is True
+    assert rewriter.is_followup_query("Does this apply in California?", history) is True
+    assert rewriter.is_followup_query("Is it allowed?", history) is True
+    assert rewriter.is_followup_query("What about firestop sealant?", history) is True
+
+    # Standalone queries without pronouns
+    assert rewriter.is_followup_query("What is the required compressive strength for post-tensioned concrete slabs under Division 03 30 00?", history) is False
+
+
+def test_conversational_query_rewriting():
+    """Verifies that follow-up questions are rewritten into standalone search queries."""
+    from app.rag.query_rewriter import ConversationalQueryRewriter
+
+    rewriter = ConversationalQueryRewriter()
+    history = [
+        {"role": "user", "content": "Can we install 1-inch Schedule 40 PVC conduit for low-voltage controls in the drop-ceiling return air plenum?"},
+        {"role": "assistant", "content": "Non-Compliant [1]: Installation of 1-inch Schedule 40 PVC conduit in ceiling return air plenums violates NEC Article 300.22(C)."}
+    ]
+
+    followup = "What are its main prohibitions under NEC 300.22?"
+    rewritten_query, was_rewritten = rewriter.rewrite_query(followup, history)
+
+    assert was_rewritten is True
+    assert rewritten_query != followup
+    assert any(term in rewritten_query.lower() for term in ["pvc", "conduit", "plenum", "ceiling"])
+    assert "300.22" in rewritten_query
+
+
+def test_conversational_multi_turn_dialogue_end_to_end():
+    """
+    Sample Multi-turn Dialogue Demonstration Test:
+    Turn 1: Initial query regarding PVC conduit in return air plenum -> NON_COMPLIANT verdict.
+    Turn 2: Follow-up query "What are its main prohibitions under NEC 300.22?" with conversation_history -> Rewritten query, hybrid retrieval, grounded response & citations.
+    """
+    # Turn 1: Initial query
+    turn1_payload = {
+        "query": "Can we install 1-inch Schedule 40 PVC conduit for low-voltage controls in the drop-ceiling return air plenum?",
+        "trade": "Electrical",
+        "jurisdiction": "National",
+        "document_type": "Code",
+        "top_k": 5,
+    }
+    res1 = client.post("/api/verify-compliance", json=turn1_payload)
+    assert res1.status_code == 200
+    data1 = res1.json()
+    assert data1["verdict"] == ComplianceVerdict.NON_COMPLIANT
+
+    # Turn 2: Follow-up query using conversation history from Turn 1
+    history = [
+        {"role": "user", "content": turn1_payload["query"]},
+        {"role": "assistant", "content": data1["summary"]},
+    ]
+    turn2_payload = {
+        "query": "What are its main prohibitions under NEC 300.22?",
+        "trade": "Electrical",
+        "jurisdiction": "National",
+        "document_type": "Code",
+        "top_k": 5,
+        "conversation_history": history,
+    }
+    res2 = client.post("/api/verify-compliance", json=turn2_payload)
+    assert res2.status_code == 200
+    data2 = res2.json()
+
+    # Verify response maintains user's original query in response body
+    assert data2["query"] == turn2_payload["query"]
+    # Verify search_metadata contains rewritten query details
+    assert "rewritten_query" in data2["search_metadata"]
+    assert data2["search_metadata"]["was_rewritten"] is True
+    assert "pvc" in data2["search_metadata"]["rewritten_query"].lower() or "plenum" in data2["search_metadata"]["rewritten_query"].lower()
+    # Verify citations and grounded compliance verdict
+    assert len(data2["citations"]) > 0
+    assert any("300.22" in c["clause_number"] for c in data2["citations"])
+
+
+def test_conversational_single_turn_backward_compatibility():
+    """Verifies 100% backward compatibility when conversation_history is empty or omitted."""
+    payload = {
+        "query": "Cylinder break tests achieved 4,850 psi at 28 days for elevated post-tensioned deck slab. Is this compliant?",
+        "trade": "Structural",
+        "jurisdiction": "National",
+        "document_type": "Project Spec",
+        "top_k": 5,
+    }
+    res = client.post("/api/verify-compliance", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["query"] == payload["query"]
+    assert "rewritten_query" not in data["search_metadata"]
+    assert data["verdict"] == ComplianceVerdict.COMPLIANT
+
+
+def test_conversational_guardrail_interaction():
+    """Verifies that hallucination guardrails still perform safe refusal on weak retrieval in multi-turn dialogues."""
+    history = [
+        {"role": "user", "content": "What is the allowable paint hue for closet door hinges?"},
+        {"role": "assistant", "content": "I couldn't find enough supporting information in the retrieved sources to answer this question."}
+    ]
+    payload = {
+        "query": "What about its color reflectance ratio?",
+        "trade": "General",
+        "jurisdiction": "National",
+        "document_type": "All",
+        "top_k": 5,
+        "conversation_history": history,
+    }
+    res = client.post("/api/verify-compliance", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["verdict"] == ComplianceVerdict.INSUFFICIENT_DATA
+    assert any(term in (data["summary"] + " " + data["technical_analysis"]).lower() for term in ["couldn't find", "insufficient", "refuses", "ambiguous"])
+
+
 if __name__ == "__main__":
     print("=" * 80)
     print("SITESAFE RAG PIPELINE & API AUTOMATED TEST SUITE")
@@ -637,6 +760,11 @@ if __name__ == "__main__":
         ("RAG Prevention of Fabricated Citations & Fallback", test_rag_no_fabricated_citations_fallback),
         ("Hallucination Guardrail: Weak Retrieval Safe Refusal", test_hallucination_guardrail_weak_retrieval_refusal),
         ("Hallucination Guardrail: Relevance Threshold Configuration", test_hallucination_guardrail_threshold_config),
+        ("Conversational RAG: Follow-up Query Detection", test_conversational_followup_query_detection),
+        ("Conversational RAG: Standalone Query Rewriting", test_conversational_query_rewriting),
+        ("Conversational RAG: End-to-End Multi-turn Dialogue", test_conversational_multi_turn_dialogue_end_to_end),
+        ("Conversational RAG: Single-turn Backward Compatibility", test_conversational_single_turn_backward_compatibility),
+        ("Conversational RAG: Guardrail Interaction & Safe Refusal", test_conversational_guardrail_interaction),
     ]
 
     passed = 0
@@ -652,5 +780,6 @@ if __name__ == "__main__":
     print("=" * 80)
     print(f"ALL {passed}/{len(tests)} TESTS PASSED SUCCESSFULLY!")
     print("=" * 80)
+
 
 
