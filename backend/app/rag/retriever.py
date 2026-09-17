@@ -132,10 +132,48 @@ class HybridRetriever:
         results: List[RetrievedChunkInfo] = []
         for pt in scored_points:
             payload = pt.payload or {}
+            c_id = str(payload.get("id", pt.id))
+            doc_title = str(payload.get("doc_title", "Authoritative Document"))
+            doc_file = payload.get("document_filename")
+
+            if not doc_file:
+                # Infer filename if payload did not explicitly store it
+                if "OSHA" in doc_title:
+                    doc_file = "OSHA_1926_Subpart_M_Fall_Protection.md"
+                elif "California Energy Code" in doc_title or "Section 130" in doc_title:
+                    doc_file = "California_Energy_Code_Title_24_Section_130_Lighting_Controls.md"
+                elif "Duct Acoustic Lining" in doc_title or "23 07 13" in doc_title:
+                    doc_file = "Project_Spec_Div_23_07_13_Duct_Acoustic_Lining.md"
+                elif "Medical Gas" in doc_title or "22 61 00" in doc_title:
+                    doc_file = "Project_Spec_Div_22_61_00_Medical_Gas_Piping.md"
+                elif "Electrical Plenum Cables" in doc_title or "IR-2026-098" in doc_title or "IR_2026_098" in c_id:
+                    doc_file = "Jobsite_Inspection_Audit_IR_2026_098_Electrical_Plenum_Cables.txt"
+                elif "Concrete Slump Log" in doc_title or "august_concrete" in c_id:
+                    doc_file = "august_concrete_slump_log.txt"
+                elif "Fire Setbacks" in doc_title or "ibc_2021_fire_setbacks" in c_id:
+                    doc_file = "ibc_2021_fire_setbacks.pdf"
+                elif "Zoning Setback" in doc_title or "municipal_zoning_setback" in c_id:
+                    doc_file = "municipal_zoning_setback.html"
+                elif "Tower B" in doc_title or "tower_b" in c_id:
+                    doc_file = "tower_b_structural_specs.md"
+                else:
+                    clean_id = c_id.rsplit('_c', 1)[0].replace('-', '_')
+                    doc_file = f"{clean_id}.txt"
+
+            c_idx = payload.get("chunk_index")
+            if c_idx is None:
+                if "_c" in c_id:
+                    try:
+                        c_idx = int(c_id.rsplit("_c", 1)[1])
+                    except (ValueError, IndexError):
+                        c_idx = 0
+                else:
+                    c_idx = 0
+
             results.append(
                 RetrievedChunkInfo(
-                    chunk_id=str(payload.get("id", pt.id)),
-                    doc_title=str(payload.get("doc_title", "Authoritative Document")),
+                    chunk_id=c_id,
+                    doc_title=doc_title,
                     clause_number=str(payload.get("clause_number", "General")),
                     document_type=str(payload.get("document_type", "Code")),
                     trade=str(payload.get("trade", "General")),
@@ -143,6 +181,8 @@ class HybridRetriever:
                     page_or_section=str(payload.get("page_or_section", "1")),
                     text=str(payload.get("content", "")),
                     score=round(float(pt.score or 0.0), 4),
+                    document_filename=doc_file,
+                    chunk_index=c_idx,
                 )
             )
 

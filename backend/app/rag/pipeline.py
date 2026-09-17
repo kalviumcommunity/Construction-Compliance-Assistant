@@ -58,6 +58,7 @@ class RAGPipeline:
             raw_chunks = self.chunker.chunk_text(cleaned_text)
 
             for c in raw_chunks:
+                doc_filename = doc.get("filename") or f"{doc['id'].replace('-', '_')}.txt"
                 chunks_to_index.append({
                     "id": f"{doc['id']}_c{c['chunk_index']}",
                     "doc_title": doc["doc_title"],
@@ -67,6 +68,8 @@ class RAGPipeline:
                     "trade": doc["trade"],
                     "page_or_section": doc["page_or_section"],
                     "content": c["text"],
+                    "document_filename": doc_filename,
+                    "chunk_index": c["chunk_index"],
                 })
 
         # 2. Process file corpus in corpus_dir if available
@@ -83,6 +86,7 @@ class RAGPipeline:
                     doc_title=l_doc.metadata.get("title", os.path.basename(l_doc.source)),
                     chunks=raw_chunks,
                 )
+                fname = os.path.basename(l_doc.source)
                 for t in tagged:
                     chunks_to_index.append({
                         "id": t.chunk_id,
@@ -93,6 +97,8 @@ class RAGPipeline:
                         "trade": t.metadata.trade,
                         "page_or_section": f"Page {t.metadata.page_number}",
                         "content": t.content,
+                        "document_filename": fname,
+                        "chunk_index": t.metadata.chunk_index,
                     })
 
         # 3. Initialize collection and index
@@ -119,6 +125,7 @@ class RAGPipeline:
                 chunks=raw_chunks,
             )
 
+            fname = original_filename or os.path.basename(file_path)
             chunks_data = [
                 {
                     "id": t.chunk_id,
@@ -129,6 +136,8 @@ class RAGPipeline:
                     "trade": t.metadata.trade,
                     "page_or_section": f"Page {t.metadata.page_number}",
                     "content": t.content,
+                    "document_filename": fname,
+                    "chunk_index": t.metadata.chunk_index,
                 }
                 for t in tagged
             ]
