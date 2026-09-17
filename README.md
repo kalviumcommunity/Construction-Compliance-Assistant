@@ -6,8 +6,33 @@
 [![Qdrant](https://img.shields.io/badge/Qdrant-Hybrid_Vector_Store-dc2626.svg?logo=qdrant&logoColor=white)](https://qdrant.tech)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776ab.svg?logo=python&logoColor=white)](https://python.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6.svg?logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > **SiteSafe** transforms dense, fragmented construction regulatory libraries into an authoritative, grounded decision engine. Site engineers, QA/QC inspectors, and superintendents ask natural-language questions regarding on-site field conditions and receive instant, source-cited compliance determinations (**Compliant**, **Non-Compliant**, or **Ambiguous/Insufficient Data**) backed by exact verbatim quotes from governing codes, specifications, and inspection logs.
+
+---
+
+## 📌 Table of Contents
+- [Systems Architecture](#-systems-architecture)
+- [Key Features](#-key-features)
+- [Tech Stack](#-tech-stack)
+- [Prerequisites](#-prerequisites)
+- [Installation & Local Setup](#-installation--local-setup)
+- [Environment Variables & Configuration](#-environment-variables--configuration)
+- [Starting Services](#-starting-services)
+- [API Endpoints & Usage Examples](#-api-endpoints--usage-examples)
+- [Document Upload & Indexing Workflow](#-document-upload--indexing-workflow)
+- [Query & Answer Generation Workflow](#-query--answer-generation-workflow)
+- [Progressive Answer Streaming](#-progressive-answer-streaming)
+- [Citations & Source Verification](#-citations--source-verification)
+- [Conversational RAG](#-conversational-rag)
+- [Zero-Hallucination Guardrails & Refusals](#-zero-hallucination-guardrails--refusals)
+- [Query Caching & Performance](#-query-caching--performance)
+- [Structured Logging & Cost Monitoring](#-structured-logging--cost-monitoring)
+- [Evaluation Framework](#-evaluation-framework)
+- [Testing & Quality Assurance](#-testing--quality-assurance)
+- [Troubleshooting](#-troubleshooting)
+- [Deployment Instructions](#-deployment-instructions)
 
 ---
 
@@ -51,7 +76,8 @@ SiteSafe utilizes a **Hybrid Dense + Sparse BM25 Retrieval-Augmented Generation 
                                                    v
                                  +-----------------------------------+
                                  | Grounded Compliance Reasoner      |
-                                 | (GPT-4o-mini / Expert Rule Engine)|
+                                 | (Gemini 1.5/3.6 / GPT-4o-mini /   |
+                                 |  Expert Offline Rule Engine)      |
                                  | - Strict Context Grounding        |
                                  | - Verbatim Direct Quotes          |
                                  | - Deterministic Safe Refusal      |
@@ -67,219 +93,293 @@ SiteSafe utilizes a **Hybrid Dense + Sparse BM25 Retrieval-Augmented Generation 
 
 ---
 
-## 🚀 Key Engineering Capabilities
+## 🚀 Key Features
 
-1. **Defensive Ingestion & Multi-Format Support**:
-   - Heterogeneous document parser supporting **PDF** (`pypdf`), **HTML** (`BeautifulSoup4`), **Markdown**, and **Plain Text**.
-   - Strict integrity validation: zero-byte and corrupted files are caught and logged without aborting batch ingestion.
-2. **Text Cleaning & Legal Preservation**:
-   - Strips running headers, footers, pagination artifacts, and confidentiality disclaimers.
-   - Heals line-wrap broken hyphenations (`fire-re-\nsistance` -> `fire-resistance`).
-   - Normalizes Unicode NFKC and typographic quotes while strictly preserving legal indentations and numbered clauses.
-3. **Table-Preserving Token Chunker**:
-   - Token-aware sliding window chunker (`tiktoken` `o200k_base` with fallback to `cl100k_base`).
-   - **Atomic Table Preservation**: Detects Markdown and ASCII tables (e.g. setback distance tables, fire rating schedules) and keeps them intact, preventing splits across rows or columns.
-   - Overlap preserves boundary-straddling conditional clauses (*Prohibitions linked to "EXCEPT WHERE" exceptions*).
-4. **Hybrid Retrieval with Reciprocal Rank Fusion (RRF)**:
-   - Dense embeddings capture conceptual meaning; sparse BM25 embeddings guarantee precision on exact clause numbers (e.g., `IBC 705.8`, `NEC 300.22`, `UPC 312.2`).
-   - Metadata pre-filtering prevents cross-project or wrong-jurisdiction contamination.
-5. **Zero Hallucination & Deterministic Safe Refusal**:
-   - Enforces context-grounded reasoning. Every finding requires verbatim direct quotes.
-   - **Safe Response Handling**: When retrieved context is missing, ambiguous, or out-of-scope, the model deterministically responds with `Ambiguous/Insufficient Data` ("I don't know"), explains missing parameters, and issues Request for Information (RFI) recommendations.
-6. **API Security & Rate Limiting**:
-   - Ingestion and reindexing endpoints (`POST /api/ingest/upload`, `POST /api/reindex`) are protected by `X-API-Key` authentication and sliding-window rate limiting.
-7. **Resilient Next.js Frontend**:
-   - Real-time compliance assistant with 45-second timeout protection and graceful error handling.
-   - Document Knowledge Base explorer with dynamic file upload modal.
-   - RAG Search Explorer inspecting raw chunk retrieval, RRF scores, and metadata.
-   - Automated Evaluation Dashboard running live benchmarks across disciplinary test matrices.
+1. **Hybrid Dense + Sparse Retrieval (RRF)**:
+   Combines dense semantic embeddings (`BAAI/bge-small-en-v1.5` or `text-embedding-3-small`) with sparse lexical BM25 embeddings (`Qdrant/bm25`) fused via Reciprocal Rank Fusion for pinpoint accuracy on clause numbers and technical terms.
+2. **Runtime Document Upload & Indexing (`POST /api/upload`)**:
+   Dynamic multipart upload for PDF, HTML, Markdown, and TXT specifications. Automatically validates, cleans, chunks, embeds, and indexes new documents into live vector storage without server restarts.
+3. **Progressive Answer Streaming (SSE)**:
+   Supports Server-Sent Events delivering token-by-token real-time streaming answers with pre-emitted metadata, citations, and source references.
+4. **Deterministic Query Caching**:
+   SHA-256 query caching with TTL expiration prevents redundant LLM calls for identical queries while preserving parameter sensitivity.
+5. **Structured Audit Logging & Usage Monitoring (`GET /api/metrics`)**:
+   Outputs machine-readable JSON logs for every query (`sitesafe.audit`) with token estimation, latency tracking, USD cost accounting, and aggregate metrics.
+6. **Zero Hallucination & Safe Refusals**:
+   Enforces strict relevance scoring thresholds (`RAG_RELEVANCE_THRESHOLD`). Out-of-scope or ungrounded queries deterministically trigger safe refusals (`Ambiguous/Insufficient Data`).
+7. **Conversational Multi-Turn RAG**:
+   Query rewriting resolves coreferences and contextual follow-ups against prior dialogue turns before executing vector retrieval.
 
 ---
 
-## 📁 Repository Layout
+## 🛠️ Tech Stack
 
-```
-RAG/
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── config.py              # Pydantic settings, environment configs, thresholds
-│   │   ├── main.py                # FastAPI application, lifespan, CORS configuration
-│   │   ├── api/
-│   │   │   ├── __init__.py
-│   │   │   ├── routes.py          # REST endpoints (/health, /documents, /verify-compliance, /ingest/upload, /stats)
-│   │   │   └── security.py        # X-API-Key verification & upload rate limiter
-│   │   ├── data/
-│   │   │   ├── __init__.py
-│   │   │   └── regulatory_corpus.py # Authoritative construction codes, specs, and reports
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   └── schemas.py         # Pydantic v2 schemas for requests, responses, and citations
-│   │   └── rag/
-│   │       ├── __init__.py
-│   │       ├── document_loader.py # Multi-format loader with corruption handling
-│   │       ├── text_cleaner.py    # Boilerplate stripping, unicode NFKC, hyphen healing
-│   │       ├── chunker.py         # Token-aware sliding chunker with table preservation
-│   │       ├── metadata_tagger.py # Regex legal clause extraction & uniform metadata tagging
-│   │       ├── embeddings.py      # Dense (OpenAI / FastEmbed) & BM25 sparse embedders
-│   │       ├── vector_store.py    # Qdrant client, hybrid collection, payload indexes
-│   │       ├── retriever.py       # Hybrid RRF search & metadata pre-filtering
-│   │       ├── generator.py       # Grounded compliance generation & safe refusal
-│   │       └── pipeline.py        # Master coordinator orchestrating ingestion & retrieval
-│   ├── corpus/                    # File-based construction document storage (PDF, HTML, MD, TXT)
-│   ├── tests/
-│   │   ├── __init__.py
-│   │   └── test_rag_pipeline.py   # 14 automated unit & integration tests
-│   ├── main.py                    # Top-level server entry point
-│   ├── test_api.py                # Standalone API verification script
-│   ├── requirements.txt           # Production Python dependencies
-│   └── .env.example               # Environment variable template
-│
-├── frontend/
-│   ├── src/
-│   │   ├── app/                   # Next.js 14 App Router pages
-│   │   ├── components/
-│   │   │   ├── assistant/         # Compliance assistant UI, QueryForm, ResultsView, Toolbar
-│   │   │   ├── pages/             # DashboardPage, DocumentsPage, SearchPage, EvaluationPage
-│   │   │   └── layout/            # Sidebar, Topbar navigation
-│   │   ├── lib/
-│   │   │   └── api.ts             # Production API client with timeout protection & types
-│   │   └── types/                 # Shared TypeScript interfaces
-│   ├── package.json
-│   └── tailwind.config.js
-│
-├── docs/
-│   └── reports/                   # Archived historical milestone reports & evaluation logs
-├── README.md                      # Production system documentation
-└── WORKFLOW.md                    # Git collaboration & team branching guidelines
+- **Backend Framework**: Python 3.11+, FastAPI, Uvicorn, Pydantic v2
+- **Frontend UI**: Next.js 14 (App Router), TypeScript, Tailwind CSS, Lucide Icons
+- **Vector Database**: Qdrant (Embedded or Remote hybrid dense + BM25 sparse)
+- **Embeddings & LLM**: FastEmbed (ONNX offline), Google Gemini API, OpenAI API
+- **Text Processing & Chunking**: `tiktoken`, `pypdf`, `beautifulsoup4`, NFKC text cleaner
+- **Testing**: `pytest`, `httpx` / Starlette `TestClient`
+
+---
+
+## 📋 Prerequisites
+
+- **Python**: 3.10+ (Python 3.11 or 3.12 recommended)
+- **Node.js**: 18.0+ & npm 9+
+- **Git**: Installed and configured
+- *(Optional)* **Gemini or OpenAI API Key**: For cloud LLM inference. (SiteSafe includes an offline fallback rule engine for 100% local operation without API keys).
+
+---
+
+## ⚙️ Installation & Local Setup
+
+### 1. Repository Setup
+```bash
+git clone https://github.com/kalviumcommunity/Construction-Compliance-Assistant.git
+cd Construction-Compliance-Assistant
 ```
 
----
-
-## 🛠️ Quickstart Guide
-
-### Prerequisites
-- Python 3.10+ (Python 3.11 recommended)
-- Node.js 18+ & npm
-- (Optional) OpenAI API Key for GPT-4o-mini generation. *SiteSafe includes a high-fidelity local deterministic rule engine and FastEmbed ONNX models for 100% offline operation without API keys.*
-
----
-
-### 1. Backend Setup
-
+### 2. Backend Environment & Dependencies
 ```powershell
 # Navigate to backend directory
 cd backend
 
-# Create and activate virtual environment (Windows PowerShell)
-python -m venv venv
-.\venv\Scripts\activate
+# Create Python virtual environment
+python -m venv .venv
+
+# Activate virtual environment (Windows PowerShell)
+.\.venv\Scripts\activate
+# (On Linux/macOS: source .venv/bin/activate)
 
 # Install production dependencies
 pip install -r requirements.txt
-
-# Copy environment configuration
-cp .env.example .env
-
-# Launch the FastAPI backend server
-uvicorn main:app --port 8000 --reload
 ```
 
-The backend server will start at `http://127.0.0.1:8000`.
-Interactive OpenAPI docs are available at `http://127.0.0.1:8000/docs`.
-
----
-
-### 2. Frontend Setup
-
+### 3. Frontend Dependencies
 ```powershell
 # Navigate to frontend directory
-cd frontend
+cd ../frontend
 
-# Install Node dependencies
+# Install Node modules
 npm install
-
-# Start Next.js development server
-npm run dev
 ```
-
-The frontend application will start at `http://localhost:3000`.
 
 ---
 
-### 3. Automated Test Suite
+## 🔐 Environment Variables & Configuration
 
-Run the comprehensive 14-test verification suite covering document parsing, table-preserving chunking, multi-trade evaluations, safe refusal, and API security:
+Copy `.env.example` to `.env` in the root (or `backend/.env`):
+
+```bash
+cp .env.example .env
+```
+
+### `.env.example` Reference:
+```env
+# Server Settings
+HOST=127.0.0.1
+PORT=8000
+DEBUG=false
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+
+# Security
+INGEST_API_KEY=sitesafe-admin-key-2026
+RATE_LIMIT_UPLOAD_PER_MINUTE=15
+RATE_LIMIT_VERIFY_PER_MINUTE=60
+
+# Vector Database (Qdrant)
+QDRANT_COLLECTION=construction_compliance
+QDRANT_PATH=backend/qdrant_storage
+QDRANT_URL=
+QDRANT_API_KEY=
+
+# LLM & Embedding Settings
+EMBEDDING_PROVIDER=fastembed
+FASTEMBED_DENSE_MODEL=BAAI/bge-small-en-v1.5
+FASTEMBED_SPARSE_MODEL=Qdrant/bm25
+
+GEMINI_API_KEY=your-gemini-api-key-here
+GEMINI_MODEL_NAME=gemini-3.6-flash
+OPENAI_API_KEY=
+OPENAI_MODEL_NAME=gpt-4o-mini
+
+# Guardrails & Caching
+RAG_RELEVANCE_THRESHOLD=0.01
+RAG_CACHE_ENABLED=true
+RAG_CACHE_TTL=3600
+RAG_LOG_FORMAT=json
+COST_PER_1K_INPUT_TOKENS=0.00015
+COST_PER_1K_OUTPUT_TOKENS=0.00060
+
+# Frontend Settings
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_INGEST_API_KEY=sitesafe-admin-key-2026
+```
+
+---
+
+## 🚀 Starting Services
+
+### 1. Start Backend API Server
+```powershell
+cd backend
+.\.venv\Scripts\activate
+python main.py
+```
+- API Server: `http://127.0.0.1:8000`
+- Interactive OpenAPI Docs: `http://127.0.0.1:8000/docs`
+
+### 2. Start Frontend Next.js UI
+```powershell
+cd frontend
+npm run dev
+```
+- Web Interface: `http://localhost:3000`
+
+---
+
+## 📡 API Endpoints & Usage Examples
+
+### 1. `POST /api/query` — Single-Turn or Streamed Compliance Query
+**Request**:
+```json
+{
+  "question": "Can we install 1-inch Schedule 40 PVC conduit for low-voltage controls in the drop-ceiling return air plenum?",
+  "trade": "Electrical",
+  "jurisdiction": "National",
+  "top_k": 5
+}
+```
+
+**Response (`200 OK`)**:
+```json
+{
+  "status": "success",
+  "answer": "Rigid nonmetallic conduit (Schedule 40 PVC) is PROHIBITED in environmental air spaces/plenums per NEC 300.22(C).",
+  "verdict": "Non-Compliant",
+  "confidence_score": 0.98,
+  "summary": "Non-compliant installation of PVC conduit in return air plenum.",
+  "technical_analysis": "NEC 300.22(C) restricts materials in plenums to metallic raceways to prevent toxic smoke spread.",
+  "sources": [
+    {
+      "document": "National Electrical Code (NFPA 70)",
+      "document_filename": "nec_2020_code_excerpt.txt",
+      "chunk_id": "nec_2020_code_excerpt_txt_chunk_3",
+      "clause_number": "NEC 300.22(C)",
+      "page": "Page 142",
+      "trade": "Electrical",
+      "direct_quote": "Rigid nonmetallic conduit (Schedule 40/80 PVC) shall NOT be installed in environmental air spaces..."
+    }
+  ],
+  "citations": [
+    {
+      "citation_index": 1,
+      "clause_number": "NEC 300.22(C)",
+      "document_title": "National Electrical Code",
+      "document_type": "Code",
+      "jurisdiction": "National",
+      "trade": "Electrical",
+      "page_or_section": "Section 300.22(C)",
+      "direct_quote": "Rigid nonmetallic conduit (Schedule 40/80 PVC) shall NOT be installed in environmental air spaces...",
+      "relevance_explanation": "Directly prohibits nonmetallic PVC conduit in return air plenums."
+    }
+  ],
+  "recommended_actions": [
+    "Issue Non-Conformance Notice (NCR).",
+    "Replace PVC with Electrical Metallic Tubing (EMT) and steel fittings."
+  ],
+  "metadata": {
+    "cache_hit": false,
+    "elapsed_time_ms": 142.5
+  }
+}
+```
+
+---
+
+### 2. `POST /api/upload` — Runtime Document Upload & Indexing
+**cURL Command**:
+```bash
+curl -X POST "http://127.0.0.1:8000/api/upload" \
+  -H "X-API-Key: sitesafe-admin-key-2026" \
+  -F "file=@spec_div_26_50_00_emergency_inverter.txt"
+```
+
+**Response (`200 OK`)**:
+```json
+{
+  "status": "success",
+  "message": "Successfully processed and indexed document 'spec_div_26_50_00_emergency_inverter.txt'.",
+  "document_id": "spec_div_26_50_00_emergency_inverter_txt",
+  "filename": "spec_div_26_50_00_emergency_inverter.txt",
+  "chunks_indexed": 4,
+  "trade": "Electrical",
+  "jurisdiction": "National"
+}
+```
+
+---
+
+### 3. `GET /api/metrics` — Usage Summary & Cost Tracking
+**Response (`200 OK`)**:
+```json
+{
+  "total_requests": 42,
+  "successful_requests": 40,
+  "failed_requests": 2,
+  "cache_hits": 12,
+  "cache_misses": 30,
+  "cache_hit_rate": 0.2857,
+  "total_input_tokens": 14500,
+  "total_output_tokens": 8200,
+  "total_tokens": 22700,
+  "estimated_total_cost_usd": 0.007095,
+  "average_latency_ms": 185.4
+}
+```
+
+---
+
+## 🧪 Testing & Quality Assurance
+
+Run the complete 49-test verification suite covering document parsing, table preservation, multi-trade evaluations, security, streaming, query caching, and E2E verification:
 
 ```powershell
 cd backend
-.\venv\Scripts\python.exe tests/test_rag_pipeline.py
+.\.venv\Scripts\pytest.exe backend/tests/
 ```
 
-Expected output:
+### Expected Output:
 ```text
-================================================================================
-SITESAFE RAG PIPELINE & API AUTOMATED TEST SUITE
-================================================================================
- [PASS] Document Loading & Corruption Checks
- [PASS] Text Normalization & Hyphen Healing
- [PASS] Table-Preserving Chunking (Never Splits Tables)
- [PASS] Metadata Tagging & Clause Extraction
- [PASS] Health & Status Endpoint
- [PASS] Knowledge Base Documents Endpoint
- [PASS] Electrical Trade (NEC 300.22 PVC in Plenum)
- [PASS] Structural Trade (Spec 03 30 00 Concrete PSI)
- [PASS] Fire Safety Trade (IBC 714.4 Firestop Sealant)
- [PASS] Plumbing Trade (UPC 312.2 Hydrostatic Test)
- [PASS] Strict Safe Refusal ('I Don't Know / Insufficient Data')
- [PASS] API Security: 401 on Unauthorized Upload
- [PASS] API Security: 200 on Authorized Upload
- [PASS] Corpus Statistics Endpoint
-================================================================================
-ALL 14/14 TESTS PASSED SUCCESSFULLY!
-================================================================================
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\megha\Downloads\Implement Feature (1)\Construction-Compliance-Assistant
+plugins: anyio-4.15.1, langsmith-0.12.6
+collected 49 items
+
+backend\tests\test_e2e_verification.py .                                 [  2%]
+backend\tests\test_projects_api.py ..                                    [  6%]
+backend\tests\test_rag_pipeline.py ..................................... [ 81%]
+.........                                                                [100%]
+
+======================= 49 passed, 2 warnings in 13.25s =======================
 ```
 
 ---
 
-## 🔍 Verification Examples across Trades
+## 🔧 Troubleshooting
 
-### Example 1: Electrical Discipline (Violation Detected)
-- **Field Query**: *"Can we install 1-inch Schedule 40 PVC conduit for low-voltage controls in the drop-ceiling return air plenum?"*
-- **Verdict**: `Non-Compliant`
-- **Governing Citation**: `NEC Article 300.22(C)` (NFPA 70: National Electrical Code)
-- **Direct Quote**: *"Rigid nonmetallic conduit (Schedule 40/80 PVC), Electrical Nonmetallic Tubing (ENT), and general nonmetallic raceways are strictly PROHIBITED from being installed in environmental air spaces or plenums."*
-- **Action**: Issue Non-Conformance Notice (NCR); replace with Electrical Metallic Tubing (EMT) and steel compression fittings.
-
-### Example 2: Structural Discipline (Approved Condition)
-- **Field Query**: *"Cylinder break tests achieved 4,850 psi at 28 days for elevated post-tensioned deck slab. Is this compliant?"*
-- **Verdict**: `Compliant`
-- **Governing Citation**: `Project Spec Div 03 30 00 §2.03.A` (Cast-in-Place Structural Concrete)
-- **Direct Quote**: *"Elevated Post-Tensioned Slabs & Shear Walls: Minimum 28-day compressive strength (f'c) shall be 4,500 psi (31.0 MPa)."*
-- **Action**: Submit official test cylinder certificates to Structural Engineer of Record (EOR) and authorize tendon stressing operations.
-
-### Example 3: Out-of-Scope / Safe Refusal (Refusal to Hallucinate)
-- **Field Query**: *"What is the allowable paint hue for the janitor closet door hinges under city guidelines?"*
-- **Verdict**: `Ambiguous/Insufficient Data`
-- **Technical Analysis**: *"A hybrid search returned zero governing statutory code or specification references for this observation. Per strict zero-hallucination compliance rules, the system strictly refuses to speculate or issue an ungrounded determination."*
-- **Action**: Submit formal Request for Information (RFI) to project architect.
+1. **`401 Unauthorized` on Upload**:
+   Ensure your request headers include `X-API-Key` matching `INGEST_API_KEY` in `.env`.
+2. **`415 Unsupported Media Type`**:
+   Verify file extension is `.pdf`, `.html`, `.md`, or `.txt`.
+3. **Qdrant Storage Lock Issue**:
+   If running multiple workers, point `QDRANT_URL` to a standalone Qdrant container (`qdrant/qdrant:latest`) instead of local embedded path.
 
 ---
 
-## 🛡️ API Endpoints Reference
+## 👥 License & Credits
 
-| Method | Path | Description | Security |
-|--------|------|-------------|----------|
-| `GET` | `/api/health` | Service status, vector store health, trade taxonomy | Public |
-| `GET` | `/api/documents` | List of indexed codes, specifications, and reports | Public |
-| `POST` | `/api/verify-compliance` | Evaluates field observations against regulatory chunks | Public |
-| `POST` | `/api/ingest/upload` | Securely upload and index PDF/MD/HTML/TXT documents | `X-API-Key` + Rate Limiter |
-| `POST` | `/api/reindex` | Force re-index of full knowledge base | `X-API-Key` |
-| `GET` | `/api/stats` | Corpus analytics, chunk counts, trade breakdown | Public |
-
----
-
-## 👥 Authors & License
-
-Developed as a production-grade regulatory RAG system for the Kalvium Software Product Engineering Program.
-Licensed under internal organizational use.
+Developed as a production-grade regulatory compliance assistant for the Kalvium Software Product Engineering Program.
+Licensed under MIT.

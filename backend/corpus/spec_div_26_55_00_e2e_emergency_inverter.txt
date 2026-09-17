@@ -1,0 +1,8 @@
+SECTION 26 55 00 - SPECIAL EMERGENCY INVERTER LIGHTING SPECIFICATIONS
+
+1.01 SUMMARY
+A. Provide central emergency lighting inverter systems for life safety illumination.
+
+2.01 BATTERY BACKUP RUNTIME REQUIREMENTS
+A. Emergency inverter battery backup system shall provide 100% rated load capacity for a MINIMUM duration of 90 MINUTES upon primary AC power failure in compliance with NFPA 101.
+B. Transfer time from normal utility power to battery emergency mode shall NOT exceed 50 milliseconds.
