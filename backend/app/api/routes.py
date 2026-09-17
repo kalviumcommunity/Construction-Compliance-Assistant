@@ -16,6 +16,10 @@ from app.config import settings
 from app.models.schemas import (
     ComplianceQueryRequest,
     ComplianceResponse,
+    ComplianceVerdict,
+    SimpleQueryRequest,
+    StructuredQueryResponse,
+    QuerySourceInfo,
     DocumentSummary,
     SystemHealthResponse,
     IngestResponse,
@@ -185,6 +189,104 @@ async def verify_compliance(payload: ComplianceQueryRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Compliance verification engine encountered an internal error. Please consult system logs.",
+        )
+
+
+@router.post(
+    "/query",
+    response_model=StructuredQueryResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Compliance"],
+    dependencies=[Depends(check_verify_rate_limit)],
+)
+async def process_query(payload: SimpleQueryRequest):
+    """
+    Evaluates user question against the authoritative RAG pipeline.
+    Validates question input, executes hybrid retrieval & synthesis,
+    and returns a structured JSON response with grounded answers, sources,
+    and refusal guardrail status.
+    """
+    # 1. Validate question input
+    if not payload.question or not isinstance(payload.question, str) or not payload.question.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid request: 'question' must be a non-empty string.",
+        )
+
+    try:
+        req = ComplianceQueryRequest(
+            query=payload.question.strip(),
+            trade=payload.trade or "All",
+            jurisdiction=payload.jurisdiction or "All",
+            document_type=payload.document_type or "All",
+            top_k=payload.top_k or 5,
+            conversation_history=payload.conversation_history or [],
+        )
+
+        response = rag_pipeline.verify_compliance(req)
+
+        # Build sources array
+        sources: List[QuerySourceInfo] = []
+        if response.retrieved_chunks:
+            for chunk in response.retrieved_chunks:
+                sources.append(
+                    QuerySourceInfo(
+                        document=chunk.doc_title,
+                        document_filename=chunk.document_filename,
+                        chunk_id=chunk.chunk_id,
+                        chunk_index=chunk.chunk_index,
+                        clause_number=chunk.clause_number,
+                        page=chunk.page_or_section,
+                        trade=chunk.trade,
+                        direct_quote=chunk.text[:250] + ("..." if len(chunk.text) > 250 else ""),
+                    )
+                )
+
+        # Determine status: "refusal" if safe refusal / insufficient data triggered, else "success"
+        is_refusal = (response.verdict == ComplianceVerdict.INSUFFICIENT_DATA)
+        api_status = "refusal" if is_refusal else "success"
+
+        # Record dynamically to query history
+        try:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            history_item = QueryHistoryItem(
+                id=f"h-{int(time.time() * 1000)}",
+                query=payload.question.strip(),
+                trade=payload.trade if payload.trade and payload.trade != "All" else "General",
+                verdict=response.verdict.value,
+                confidence=int(response.confidence_score * 100),
+                date=now_iso,
+                sources_count=len(sources),
+                project_id="p1",
+            )
+            _query_history.insert(0, history_item)
+            if len(_query_history) > 100:
+                _query_history.pop()
+        except Exception as log_err:
+            logger.warning(f"Failed to record query to in-memory history: {log_err}")
+
+        # Synthesize clear answer text combining verdict summary & technical analysis
+        answer_text = f"{response.summary}\n\n{response.technical_analysis}"
+
+        return StructuredQueryResponse(
+            status=api_status,
+            answer=answer_text,
+            verdict=response.verdict,
+            confidence_score=response.confidence_score,
+            summary=response.summary,
+            technical_analysis=response.technical_analysis,
+            sources=sources,
+            citations=response.citations,
+            recommended_actions=response.recommended_actions,
+            metadata=response.search_metadata,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error executing /api/query: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred while processing the query.",
         )
 
 
