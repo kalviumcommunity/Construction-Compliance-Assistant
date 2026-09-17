@@ -80,5 +80,12 @@ class Settings(BaseSettings):
     RAG_RELEVANCE_THRESHOLD: float = 0.01
     MIN_RELEVANT_CHUNKS: int = 1
 
+    # Caching, Structured Logging & Usage Monitoring Settings
+    RAG_CACHE_ENABLED: bool = True
+    RAG_CACHE_TTL: int = 3600  # Cache TTL in seconds (1 hour)
+    RAG_LOG_FORMAT: str = "json"
+    COST_PER_1K_INPUT_TOKENS: float = 0.00015
+    COST_PER_1K_OUTPUT_TOKENS: float = 0.00060
+
 
 settings = Settings()

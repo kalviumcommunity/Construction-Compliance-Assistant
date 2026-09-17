@@ -1,0 +1,2 @@
+Project Specification Division 26 50 00 Section 3.04 Electrical Systems:
+All electrical emergency battery inverter backup units installed on Tower C Level 12 shall undergo a continuous 90-minute full load discharge test under NFPA 110. Installation of Schedule 40 PVC conduit in ceiling return air plenum is strictly prohibited.

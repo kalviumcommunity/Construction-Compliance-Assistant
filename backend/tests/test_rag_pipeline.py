@@ -932,6 +932,89 @@ def test_query_stream_api_success():
     assert "Non-Compliant" in content
 
 
+def test_query_caching_hit_and_miss():
+    """Verifies deterministic query caching returns cache miss on first request, cache hit on identical query, and cache miss when settings change."""
+    from app.rag.query_cache import query_cache
+
+    query_cache.clear()
+    payload = {
+        "question": "Can we install 1-inch Schedule 40 PVC conduit for low-voltage controls in the drop-ceiling return air plenum?",
+        "trade": "Electrical",
+        "jurisdiction": "National",
+    }
+
+    # First request -> Cache Miss
+    res1 = client.post("/api/query", json=payload)
+    assert res1.status_code == 200
+    assert res1.json()["metadata"]["cache_hit"] is False
+
+    # Second identical request -> Cache Hit
+    res2 = client.post("/api/query", json=payload)
+    assert res2.status_code == 200
+    assert res2.json()["metadata"]["cache_hit"] is True
+
+    # Changed setting (different trade) -> Cache Miss
+    payload_changed = dict(payload, trade="Plumbing")
+    res3 = client.post("/api/query", json=payload_changed)
+    assert res3.status_code == 200
+    assert res3.json()["metadata"]["cache_hit"] is False
+
+
+def test_cache_expiration():
+    """Verifies query cache TTL invalidates expired entries."""
+    import time
+    from app.rag.query_cache import query_cache
+
+    key = query_cache.generate_cache_key("Expiring query test")
+    query_cache.set(key, {"status": "success", "verdict": "Compliant"})
+    assert query_cache.get(key) is not None
+
+    # Simulate TTL expiration by setting timestamp into past
+    query_cache._cache[key]["timestamp"] = time.time() - (settings.RAG_CACHE_TTL + 10)
+    assert query_cache.get(key) is None
+
+
+def test_structured_logging_and_cost_monitoring():
+    """Verifies rag_logger records structured JSON log entries with token estimates and USD cost calculations."""
+    from app.rag.structured_logger import rag_logger, estimate_tokens, calculate_token_cost
+
+    text_input = "Sample construction question for token estimation."
+    tokens = estimate_tokens(text_input)
+    assert tokens > 0
+
+    cost = calculate_token_cost(1000, 500)
+    assert cost > 0.0
+
+    log = rag_logger.log_request(
+        request_id="test-req-101",
+        question="Is post-tensioned slab break test of 4800 psi compliant?",
+        verdict="Compliant",
+        status="success",
+        cache_hit=False,
+        elapsed_time_ms=150.5,
+        retrieved_sources=[{"document": "Spec 03 30 00", "clause_number": "2.03.A"}],
+        input_text="Is post-tensioned slab break test of 4800 psi compliant?",
+        output_text="Compliant: Meets minimum 4,500 psi threshold.",
+    )
+    assert log["request_id"] == "test-req-101"
+    assert log["cache_hit"] is False
+    assert log["tokens"]["total_tokens"] > 0
+    assert "estimated_cost_usd" in log
+
+
+def test_usage_metrics_endpoint():
+    """Verifies GET /api/metrics returns aggregated usage summary metrics."""
+    res = client.get("/api/metrics")
+    assert res.status_code == 200
+    data = res.json()
+    assert "total_requests" in data
+    assert "cache_hits" in data
+    assert "cache_misses" in data
+    assert "cache_hit_rate" in data
+    assert "estimated_total_cost_usd" in data
+    assert "average_latency_ms" in data
+
+
 if __name__ == "__main__":
     print("=" * 80)
     print("SITESAFE RAG PIPELINE & API AUTOMATED TEST SUITE")

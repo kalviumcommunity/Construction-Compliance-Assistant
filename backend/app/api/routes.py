@@ -34,6 +34,8 @@ from app.models.schemas import (
     DeleteProjectResponse,
 )
 from app.rag.pipeline import rag_pipeline
+from app.rag.query_cache import query_cache
+from app.rag.structured_logger import rag_logger
 from app.api.security import (
     verify_ingest_api_key,
     check_upload_rate_limit,
@@ -318,6 +320,53 @@ async def process_query(payload: SimpleQueryRequest):
             detail="Invalid request: 'question' must be a non-empty string.",
         )
 
+    req_id = f"req-{int(time.time() * 1000)}"
+    start_time = time.time()
+
+    # 1. Check Query Cache
+    cache_key = query_cache.generate_cache_key(
+        question=payload.question,
+        trade=payload.trade or "All",
+        jurisdiction=payload.jurisdiction or "All",
+        doc_type=payload.document_type or "All",
+        top_k=payload.top_k or 5,
+        conversation_history=payload.conversation_history,
+    )
+
+    cached_res = query_cache.get(cache_key)
+    if cached_res is not None:
+        elapsed_ms = (time.time() - start_time) * 1000.0
+        # Update metadata to reflect cache hit
+        cached_meta = dict(cached_res.get("metadata", {}))
+        cached_meta["cache_hit"] = True
+        cached_meta["elapsed_time_ms"] = round(elapsed_ms, 2)
+
+        resp = StructuredQueryResponse(
+            status=cached_res["status"],
+            answer=cached_res["answer"],
+            verdict=cached_res["verdict"],
+            confidence_score=cached_res["confidence_score"],
+            summary=cached_res["summary"],
+            technical_analysis=cached_res["technical_analysis"],
+            sources=[QuerySourceInfo(**s) for s in cached_res.get("sources", [])],
+            citations=cached_res.get("citations", []),
+            recommended_actions=cached_res.get("recommended_actions", []),
+            metadata=cached_meta,
+        )
+
+        rag_logger.log_request(
+            request_id=req_id,
+            question=payload.question,
+            verdict=resp.verdict.value if hasattr(resp.verdict, "value") else str(resp.verdict),
+            status=resp.status,
+            cache_hit=True,
+            elapsed_time_ms=elapsed_ms,
+            retrieved_sources=cached_res.get("sources", []),
+            input_text=payload.question,
+            output_text=resp.answer,
+        )
+        return resp
+
     try:
         req = ComplianceQueryRequest(
             query=payload.question.strip(),
@@ -329,6 +378,7 @@ async def process_query(payload: SimpleQueryRequest):
         )
 
         response = rag_pipeline.verify_compliance(req)
+        elapsed_ms = (time.time() - start_time) * 1000.0
 
         # Build sources array
         sources: List[QuerySourceInfo] = []
@@ -358,7 +408,7 @@ async def process_query(payload: SimpleQueryRequest):
                 id=f"h-{int(time.time() * 1000)}",
                 query=payload.question.strip(),
                 trade=payload.trade if payload.trade and payload.trade != "All" else "General",
-                verdict=response.verdict.value,
+                verdict=response.verdict.value if hasattr(response.verdict, "value") else str(response.verdict),
                 confidence=int(response.confidence_score * 100),
                 date=now_iso,
                 sources_count=len(sources),
@@ -373,7 +423,11 @@ async def process_query(payload: SimpleQueryRequest):
         # Synthesize clear answer text combining verdict summary & technical analysis
         answer_text = f"{response.summary}\n\n{response.technical_analysis}"
 
-        return StructuredQueryResponse(
+        meta = dict(response.search_metadata or {})
+        meta["cache_hit"] = False
+        meta["elapsed_time_ms"] = round(elapsed_ms, 2)
+
+        resp_obj = StructuredQueryResponse(
             status=api_status,
             answer=answer_text,
             verdict=response.verdict,
@@ -383,16 +437,76 @@ async def process_query(payload: SimpleQueryRequest):
             sources=sources,
             citations=response.citations,
             recommended_actions=response.recommended_actions,
-            metadata=response.search_metadata,
+            metadata=meta,
         )
-    except HTTPException:
+
+        # Save to Cache
+        cache_data = {
+            "status": api_status,
+            "answer": answer_text,
+            "verdict": response.verdict.value if hasattr(response.verdict, "value") else str(response.verdict),
+            "confidence_score": response.confidence_score,
+            "summary": response.summary,
+            "technical_analysis": response.technical_analysis,
+            "sources": [s.model_dump() if hasattr(s, "model_dump") else s.dict() for s in sources],
+            "citations": [c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in response.citations],
+            "recommended_actions": response.recommended_actions,
+            "metadata": meta,
+        }
+        query_cache.set(cache_key, cache_data)
+
+        # Log Structured JSON Entry
+        rag_logger.log_request(
+            request_id=req_id,
+            question=payload.question,
+            verdict=response.verdict.value if hasattr(response.verdict, "value") else str(response.verdict),
+            status=api_status,
+            cache_hit=False,
+            elapsed_time_ms=elapsed_ms,
+            retrieved_sources=[s.model_dump() if hasattr(s, "model_dump") else s.dict() for s in sources],
+            input_text=payload.question,
+            output_text=answer_text,
+        )
+
+        return resp_obj
+    except HTTPException as http_err:
+        rag_logger.log_request(
+            request_id=req_id,
+            question=payload.question,
+            verdict="Error",
+            status="error",
+            cache_hit=False,
+            elapsed_time_ms=(time.time() - start_time) * 1000.0,
+            retrieved_sources=[],
+            error_detail=http_err.detail,
+        )
         raise
     except Exception as e:
+        elapsed_ms = (time.time() - start_time) * 1000.0
         logger.error(f"Error executing /api/query: {e}", exc_info=True)
+        rag_logger.log_request(
+            request_id=req_id,
+            question=payload.question,
+            verdict="Error",
+            status="error",
+            cache_hit=False,
+            elapsed_time_ms=elapsed_ms,
+            retrieved_sources=[],
+            error_detail=str(e),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An internal server error occurred while processing the query.",
         )
+
+
+@router.get("/metrics", tags=["Monitoring"])
+async def get_usage_metrics():
+    """
+    Returns aggregated usage summary metrics including total requests,
+    cache hits/misses, cache hit rate, token counts, latency, and estimated total costs.
+    """
+    return rag_logger.get_usage_summary()
 
 
 @router.get("/history", response_model=List[QueryHistoryItem], tags=["Compliance"])
