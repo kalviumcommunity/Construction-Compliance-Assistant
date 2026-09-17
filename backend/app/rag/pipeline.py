@@ -26,6 +26,7 @@ from app.rag.metadata_tagger import MetadataTagger
 from app.rag.vector_store import VectorStoreManager
 from app.rag.retriever import HybridRetriever
 from app.rag.generator import ComplianceGenerator
+from app.rag.query_rewriter import ConversationalQueryRewriter
 
 logger = logging.getLogger("sitesafe.pipeline")
 
@@ -43,6 +44,7 @@ class RAGPipeline:
         self.vector_store = VectorStoreManager()
         self.retriever = HybridRetriever(self.vector_store)
         self.generator = ComplianceGenerator()
+        self.query_rewriter = ConversationalQueryRewriter()
 
     def ingest_default_corpus(self, force_recreate: bool = False) -> Tuple[int, List[str]]:
         """
@@ -155,9 +157,22 @@ class RAGPipeline:
             f"Verifying compliance: query='{request.query}' trade='{request.trade}' jur='{request.jurisdiction}' doc='{request.document_type}'"
         )
 
+        # 0. Rewrite query if conversational history is provided
+        search_query = request.query
+        rewritten_query = None
+        was_rewritten = False
+
+        if request.conversation_history:
+            rewritten_query, was_rewritten = self.query_rewriter.rewrite_query(
+                request.query, request.conversation_history
+            )
+            if was_rewritten and rewritten_query:
+                search_query = rewritten_query
+                logger.info(f"Conversational query rewritten into standalone search query: '{rewritten_query}'")
+
         # 1. Retrieve hybrid chunks
         chunks = self.retriever.search(
-            query=request.query,
+            query=search_query,
             trade=request.trade or "All",
             jurisdiction=request.jurisdiction or "All",
             doc_type=request.document_type or "All",
@@ -165,8 +180,30 @@ class RAGPipeline:
         )
 
         # 2. Synthesize grounded answer
-        llm_out = self.generator.generate_compliance_verdict(query=request.query, chunks=chunks)
+        llm_out = self.generator.generate_compliance_verdict(
+            query=request.query,
+            chunks=chunks,
+            conversation_history=request.conversation_history,
+            rewritten_query=rewritten_query if was_rewritten else None,
+        )
         elapsed_ms = round((time.time() - start_time) * 1000, 2)
+
+        search_metadata: Dict[str, Any] = {
+            "query": request.query,
+            "elapsed_time_ms": elapsed_ms,
+            "chunks_retrieved": len(chunks),
+            "filters_applied": {
+                "trade": request.trade,
+                "jurisdiction": request.jurisdiction,
+                "document_type": request.document_type,
+                "top_k": request.top_k,
+            },
+            "retrieval_mode": "Hybrid (Dense + BM25 Sparse RRF)",
+        }
+
+        if was_rewritten and rewritten_query:
+            search_metadata["rewritten_query"] = rewritten_query
+            search_metadata["was_rewritten"] = True
 
         return ComplianceResponse(
             query=request.query,
@@ -177,18 +214,7 @@ class RAGPipeline:
             citations=llm_out.citations,
             recommended_actions=llm_out.recommended_actions,
             retrieved_chunks=chunks,
-            search_metadata={
-                "query": request.query,
-                "elapsed_time_ms": elapsed_ms,
-                "chunks_retrieved": len(chunks),
-                "filters_applied": {
-                    "trade": request.trade,
-                    "jurisdiction": request.jurisdiction,
-                    "document_type": request.document_type,
-                    "top_k": request.top_k,
-                },
-                "retrieval_mode": "Hybrid (Dense + BM25 Sparse RRF)",
-            },
+            search_metadata=search_metadata,
         )
 
     def get_document_summaries(self) -> List[DocumentSummary]:

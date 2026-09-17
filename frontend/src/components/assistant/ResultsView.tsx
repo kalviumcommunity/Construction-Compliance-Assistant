@@ -127,23 +127,36 @@ export function ResultsView() {
   return (
     <div className="space-y-6 mt-6">
       {/* Evaluated Observation Context Banner */}
-      <div className="bg-muted/40 border border-border/80 rounded-xl p-3.5 flex items-start gap-3 shadow-xs">
-        <div className="p-1.5 rounded-lg bg-primary/10 text-primary mt-0.5 shrink-0">
-          <FileText className="w-4 h-4" />
-        </div>
-        <div className="flex-1 min-w-0 space-y-0.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Dynamically Evaluated Prompt</span>
-            {result.citations?.[0]?.trade && (
-              <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.2 rounded-full bg-background border">
-                {result.citations[0].trade} Discipline
-              </span>
-            )}
+      <div className="bg-muted/40 border border-border/80 rounded-xl p-3.5 space-y-2.5 shadow-xs">
+        <div className="flex items-start gap-3">
+          <div className="p-1.5 rounded-lg bg-primary/10 text-primary mt-0.5 shrink-0">
+            <FileText className="w-4 h-4" />
           </div>
-          <p className="text-sm font-semibold text-foreground italic">
-            &ldquo;{result.query || 'Submitted Field Observation'}&rdquo;
-          </p>
+          <div className="flex-1 min-w-0 space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Dynamically Evaluated Prompt</span>
+              {result.citations?.[0]?.trade && (
+                <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.2 rounded-full bg-background border">
+                  {result.citations[0].trade} Discipline
+                </span>
+              )}
+            </div>
+            <p className="text-sm font-semibold text-foreground italic">
+              &ldquo;{result.query || 'Submitted Field Observation'}&rdquo;
+            </p>
+          </div>
         </div>
+
+        {result.search_metadata?.rewritten_query && (
+          <div className="pt-2 border-t border-border/60 flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="px-2 py-0.5 rounded bg-primary/15 text-primary font-bold text-[10px] uppercase tracking-wider shrink-0 border border-primary/30">
+              Rewritten Standalone Query
+            </span>
+            <span className="font-mono text-foreground/90 font-medium truncate">
+              &ldquo;{result.search_metadata.rewritten_query}&rdquo;
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Top Results Action Bar */}

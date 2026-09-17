@@ -52,6 +52,8 @@ export interface ComplianceResponse {
       top_k?: number;
     };
     retrieval_mode: string;
+    rewritten_query?: string;
+    was_rewritten?: boolean;
   };
 }
 
@@ -61,6 +63,7 @@ export interface ComplianceQueryRequest {
   jurisdiction?: string;
   document_type?: string;
   top_k?: number;
+  conversation_history?: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
 export interface DocumentSummary {

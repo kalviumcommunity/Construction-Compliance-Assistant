@@ -81,7 +81,13 @@ class ComplianceGenerator:
 
         return False, ""
 
-    def generate_compliance_verdict(self, query: str, chunks: List[RetrievedChunkInfo]) -> LLMComplianceOutput:
+    def generate_compliance_verdict(
+        self,
+        query: str,
+        chunks: List[RetrievedChunkInfo],
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+        rewritten_query: Optional[str] = None,
+    ) -> LLMComplianceOutput:
         """
         Synthesizes compliance determination.
         Uses Google Gemini or OpenAI structured output if API key is active.
@@ -292,10 +298,16 @@ class ComplianceGenerator:
                     logger.warning(f"OpenAI LLM synthesis error: {e}. Utilizing deterministic reasoning engine.")
 
         # Deterministic Expert Rule Engine Fallback (Offline / Sandbox / CI Mode)
-        return self.evaluate_deterministic_compliance(query, chunks)
+        return self.evaluate_deterministic_compliance(
+            query, chunks, conversation_history=conversation_history, rewritten_query=rewritten_query
+        )
 
     def evaluate_deterministic_compliance(
-        self, query: str, chunks: List[RetrievedChunkInfo]
+        self,
+        query: str,
+        chunks: List[RetrievedChunkInfo],
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+        rewritten_query: Optional[str] = None,
     ) -> LLMComplianceOutput:
         """
         Deterministic, zero-hallucination compliance engine matching field observations
@@ -316,7 +328,8 @@ class ComplianceGenerator:
                 ],
             )
 
-        query_lower = query.lower()
+        effective_query = f"{query} {rewritten_query}" if rewritten_query else query
+        query_lower = effective_query.lower()
 
         # Rule 0: Weak or Unsupported Context Retrieval -> Explicit Safe Refusal
         is_weak, refusal_reason = self.is_weak_retrieval(chunks)

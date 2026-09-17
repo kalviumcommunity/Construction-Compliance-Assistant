@@ -152,8 +152,14 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const [conversationTurns, setConversationTurns] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+
   const toggleAction = (idx: number) => {
     setCompletedActions((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
+  const resetConversation = () => {
+    setConversationTurns([]);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -169,23 +175,33 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
     const stepTimer1 = setTimeout(() => setLoadingStep(2), 700);
     const stepTimer2 = setTimeout(() => setLoadingStep(3), 1400);
 
+    const currentQuery = query.trim();
+
     try {
       const data = await api.verifyCompliance({
-        query: query.trim(),
+        query: currentQuery,
         trade,
         jurisdiction,
         document_type: docType,
         top_k: searchThoroughness,
+        conversation_history: conversationTurns.slice(-6),
       });
 
-      setResult({ ...data, query: data.query || query.trim() });
+      setResult({ ...data, query: data.query || currentQuery });
       setActiveTab('summary');
+
+      // Update multi-turn conversation history
+      setConversationTurns((prev) => [
+        ...prev,
+        { role: 'user', content: currentQuery },
+        { role: 'assistant', content: data.summary },
+      ]);
 
       setLocalHistory((prev) => [
         {
           id: Date.now(),
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          query: query.trim(),
+          query: currentQuery,
           trade,
           jurisdiction,
           verdict: data.verdict,
