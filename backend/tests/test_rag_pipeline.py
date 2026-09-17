@@ -26,6 +26,7 @@ from app.rag.chunker import TokenAwareChunker
 from app.rag.metadata_tagger import MetadataTagger
 from app.rag.pipeline import rag_pipeline
 from app.models.schemas import ComplianceQueryRequest, ComplianceVerdict
+from app.config import settings
 
 client = TestClient(app)
 # Ensure test vector store has authoritative corpus indexed
@@ -809,6 +810,112 @@ def test_query_api_conversational_history():
     assert "pvc" in data["metadata"]["rewritten_query"].lower() or "plenum" in data["metadata"]["rewritten_query"].lower()
 
 
+def test_upload_endpoint_success_and_immediate_searchability():
+    """
+    CRITICAL END-TO-END TEST:
+    Uploads a new document file via POST /api/upload -> Ingests & Indexes -> Immediately queries POST /api/query ->
+    Verifies newly indexed document is searchable and cited WITHOUT restarting application.
+    """
+    doc_content = (
+        "Project Specification Division 26 50 00 Section 3.04 Electrical Systems:\n"
+        "All electrical emergency battery inverter backup units installed on Tower C Level 12 "
+        "shall undergo a continuous 90-minute full load discharge test under NFPA 110. "
+        "Installation of Schedule 40 PVC conduit in ceiling return air plenum is strictly prohibited."
+    )
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt", mode="w", encoding="utf-8") as f:
+        f.write(doc_content)
+        tmp_name = f.name
+
+    try:
+        # Step 1: Upload new document via POST /api/upload
+        with open(tmp_name, "rb") as upload_file:
+            res_upload = client.post(
+                "/api/upload",
+                files={"file": ("spec_div_26_50_00_emergency_inverter.txt", upload_file, "text/plain")},
+            )
+
+        assert res_upload.status_code == 200
+        data_upload = res_upload.json()
+        assert data_upload["status"] == "success"
+        assert data_upload["chunks_indexed"] > 0
+        assert data_upload["documents_ingested"] == 1
+
+        # Step 2: Immediate Searchability Check via POST /api/query (without app restart)
+        query_payload = {
+            "question": "Can we install Schedule 40 PVC conduit for electrical emergency battery inverter units in ceiling return air plenum under Division 26 50 00?",
+            "trade": "Electrical",
+        }
+        res_query = client.post("/api/query", json=query_payload)
+        assert res_query.status_code == 200
+        data_query = res_query.json()
+
+        assert data_query["status"] == "success"
+        assert len(data_query["sources"]) > 0
+        # Confirm returned source corresponds to the newly uploaded document
+        source_filenames = [s.get("document_filename", "") for s in data_query["sources"]]
+        assert any("spec_div_26_50_00" in fname.lower() for fname in source_filenames)
+    finally:
+        if os.path.exists(tmp_name):
+            os.remove(tmp_name)
+
+
+def test_upload_endpoint_empty_file_400():
+    """Verifies POST /api/upload rejects empty 0-byte file with 400 Bad Request."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
+        tmp_name = f.name  # 0 bytes
+
+    try:
+        with open(tmp_name, "rb") as f:
+            res = client.post("/api/upload", files={"file": ("empty.txt", f, "text/plain")})
+        assert res.status_code == 400
+        assert "empty" in res.json()["detail"].lower()
+    finally:
+        if os.path.exists(tmp_name):
+            os.remove(tmp_name)
+
+
+def test_upload_endpoint_unsupported_format_415():
+    """Verifies POST /api/upload rejects unsupported file formats (.exe) with 415 Unsupported Media Type."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".exe", mode="wb") as f:
+        f.write(b"Binary executable content")
+        tmp_name = f.name
+
+    try:
+        with open(tmp_name, "rb") as f:
+            res = client.post("/api/upload", files={"file": ("malware.exe", f, "application/octet-stream")})
+        assert res.status_code == 415
+        assert "unsupported" in res.json()["detail"].lower()
+    finally:
+        if os.path.exists(tmp_name):
+            os.remove(tmp_name)
+
+
+def test_upload_endpoint_oversized_file_413():
+    """Verifies POST /api/upload rejects oversized files (>10MB) with 413 Payload Too Large."""
+    oversized_data = b"A" * (10 * 1024 * 1024 + 100)
+    res = client.post(
+        "/api/upload",
+        files={"file": ("large_file.txt", oversized_data, "text/plain")},
+    )
+    assert res.status_code == 413
+    assert "exceeds" in res.json()["detail"].lower()
+
+
+def test_upload_endpoint_path_traversal_sanitized():
+    """Verifies POST /api/upload safely sanitizes path traversal attempts in filename."""
+    res = client.post(
+        "/api/upload",
+        files={"file": ("../../traversal_test_public.txt", b"Valid text content for traversal defense.", "text/plain")},
+    )
+    assert res.status_code == 200
+    assert res.json()["status"] == "success"
+    # Clean up sanitized file if created
+    sanitized_path = os.path.join(settings.CORPUS_DIR, "traversal_test_public.txt")
+    if os.path.exists(sanitized_path):
+        os.remove(sanitized_path)
+
+
 if __name__ == "__main__":
     print("=" * 80)
     print("SITESAFE RAG PIPELINE & API AUTOMATED TEST SUITE")
@@ -851,6 +958,11 @@ if __name__ == "__main__":
         ("Query API: Invalid Empty Question (400 Bad Request)", test_query_api_invalid_empty_question),
         ("Query API: Safe Refusal Status", test_query_api_refusal_unsupported_question),
         ("Query API: Conversational History & Query Rewriting", test_query_api_conversational_history),
+        ("Upload API: Runtime Upload & Immediate Searchability Flow", test_upload_endpoint_success_and_immediate_searchability),
+        ("Upload API: Empty File (400 Bad Request)", test_upload_endpoint_empty_file_400),
+        ("Upload API: Unsupported Format (415 Unsupported Media Type)", test_upload_endpoint_unsupported_format_415),
+        ("Upload API: Oversized File (413 Payload Too Large)", test_upload_endpoint_oversized_file_413),
+        ("Upload API: Path Traversal Sanitized (200 OK)", test_upload_endpoint_path_traversal_sanitized),
     ]
 
     passed = 0

@@ -162,6 +162,7 @@ class SystemHealthResponse(BaseModel):
 class IngestResponse(BaseModel):
     status: str
     message: str
+    filename: Optional[str] = None
     documents_ingested: int
     chunks_indexed: int
     errors: List[str] = []

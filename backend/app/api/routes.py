@@ -353,18 +353,14 @@ async def get_inspections():
     return _inspections_store
 
 
-@router.post(
-    "/ingest/upload",
-    response_model=IngestResponse,
-    tags=["Ingestion"],
-    dependencies=[Depends(verify_ingest_api_key), Depends(check_upload_rate_limit)],
-)
-async def upload_and_ingest_document(file: UploadFile = File(...)):
-    """
-    Secure document upload endpoint with API key verification and rate limiting.
-    Enforces strict MIME validation, magic byte checks, size limit, and path traversal defense.
-    """
-    raw_filename = file.filename or "uploaded_document.txt"
+async def _handle_file_upload(file: UploadFile) -> IngestResponse:
+    if not file or not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing file in upload request.",
+        )
+
+    raw_filename = file.filename.strip()
 
     # Defend against Path Traversal (strip directories, restrict characters)
     basename = os.path.basename(raw_filename).strip()
@@ -375,14 +371,14 @@ async def upload_and_ingest_document(file: UploadFile = File(...)):
     ext = os.path.splitext(clean_filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported format '{ext}'. Supported formats are: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"Unsupported file format '{ext}'. Supported formats are: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
         )
 
     # Validate Content-Type / MIME Type
     content_type = (file.content_type or "").lower().split(";")[0].strip()
     valid_mimes = ALLOWED_MIME_TYPES.get(ext, set())
-    if content_type and content_type not in valid_mimes:
+    if content_type and valid_mimes and content_type not in valid_mimes:
         logger.warning(f"MIME type mismatch for file '{clean_filename}': {content_type} not in {valid_mimes}")
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -400,7 +396,7 @@ async def upload_and_ingest_document(file: UploadFile = File(...)):
         if len(content_bytes) == 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Empty file uploaded. Please provide a valid document.",
+                detail="Empty file uploaded. Please provide a valid non-empty document.",
             )
     except HTTPException:
         raise
@@ -419,14 +415,13 @@ async def upload_and_ingest_document(file: UploadFile = File(...)):
                 detail="Invalid PDF structure: Missing %PDF header.",
             )
     elif ext in {".txt", ".md", ".html", ".htm"}:
-        # Ensure text files do not contain binary executable headers (PE MZ or ELF)
         if content_bytes.startswith(b"MZ") or content_bytes.startswith(b"\x7fELF"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Binary executable files are strictly prohibited.",
             )
 
-    # Save to a temporary file for defensive parsing
+    # Save to a temporary file for parsing & indexing
     with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
         tmp.write(content_bytes)
         tmp_path = tmp.name
@@ -434,17 +429,16 @@ async def upload_and_ingest_document(file: UploadFile = File(...)):
     try:
         indexed_count, err = rag_pipeline.ingest_single_file(tmp_path, original_filename=clean_filename)
         if err:
-            logger.warning(f"Document parsing error for '{clean_filename}': {err}")
+            logger.error(f"Document processing or vector indexing failed for '{clean_filename}': {err}")
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Document parsing failed. Ensure file content is valid and uncorrupted.",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Document parsing or vector indexing failed.",
             )
 
         # Securely copy to corpus directory with boundary check
         if os.path.exists(settings.CORPUS_DIR):
             corpus_dir_abs = os.path.abspath(settings.CORPUS_DIR)
             target_path = os.path.abspath(os.path.join(corpus_dir_abs, clean_filename))
-            # Verify target strictly resides inside corpus directory
             if not target_path.startswith(corpus_dir_abs + os.sep):
                 logger.error(f"Path traversal detected: {target_path} is outside {corpus_dir_abs}")
                 raise HTTPException(
@@ -455,7 +449,8 @@ async def upload_and_ingest_document(file: UploadFile = File(...)):
 
         return IngestResponse(
             status="success",
-            message=f"Document '{clean_filename}' successfully ingested and indexed.",
+            message=f"Document '{clean_filename}' successfully uploaded, processed, and indexed.",
+            filename=clean_filename,
             documents_ingested=1,
             chunks_indexed=indexed_count,
             errors=[],
@@ -463,6 +458,34 @@ async def upload_and_ingest_document(file: UploadFile = File(...)):
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+
+@router.post(
+    "/upload",
+    response_model=IngestResponse,
+    tags=["Ingestion"],
+    dependencies=[Depends(check_upload_rate_limit)],
+)
+async def upload_document(file: UploadFile = File(...)):
+    """
+    Public document upload endpoint for runtime ingestion and indexing.
+    Processes uploaded PDF, Markdown, HTML, or Text files, extracts chunks,
+    generates embeddings, and indexes content into live vector database for immediate searchability.
+    """
+    return await _handle_file_upload(file)
+
+
+@router.post(
+    "/ingest/upload",
+    response_model=IngestResponse,
+    tags=["Ingestion"],
+    dependencies=[Depends(verify_ingest_api_key), Depends(check_upload_rate_limit)],
+)
+async def upload_and_ingest_document(file: UploadFile = File(...)):
+    """
+    Secure document upload endpoint with API key verification and rate limiting.
+    """
+    return await _handle_file_upload(file)
 
 
 @router.post(
