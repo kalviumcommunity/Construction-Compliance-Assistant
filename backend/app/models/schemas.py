@@ -95,6 +95,7 @@ class SimpleQueryRequest(BaseModel):
         default_factory=list,
         description="Prior conversation turns as a list of dicts with 'role' ('user'|'assistant') and 'content'.",
     )
+    stream: Optional[bool] = Field(False, description="Set True to receive progressive Server-Sent Events stream.")
 
 
 class QuerySourceInfo(BaseModel):

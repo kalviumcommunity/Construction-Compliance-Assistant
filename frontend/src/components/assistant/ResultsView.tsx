@@ -7,11 +7,11 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 export function ResultsView() {
-  const { result, loading, error, handleSubmit, activeTab, setActiveTab, completedActions, toggleAction, setShowNoticeModal, setShowPrintModal } = useAssistant();
+  const { result, loading, error, isStreaming, streamedAnswer, cancelStream, handleSubmit, activeTab, setActiveTab, completedActions, toggleAction, setShowNoticeModal, setShowPrintModal } = useAssistant();
   const [copiedQuoteIdx, setCopiedQuoteIdx] = useState<number | null>(null);
   const [verifiedSourceIdx, setVerifiedSourceIdx] = useState<number | null>(null);
 
-  if (loading) return null;
+  if (loading && !result && !streamedAnswer) return null;
 
   if (error) {
     return (
@@ -328,7 +328,10 @@ export function ResultsView() {
               </div>
             </div>
             <div className="text-sm leading-relaxed whitespace-pre-line space-y-2 pt-1">
-              {renderTextWithCitations(result.technical_analysis)}
+              {renderTextWithCitations(streamedAnswer || result.technical_analysis)}
+              {isStreaming && (
+                <span className="inline-block w-2 h-4 ml-1 bg-primary animate-pulse align-middle" title="Streaming incoming tokens..." />
+              )}
             </div>
           </Card>
         </div>

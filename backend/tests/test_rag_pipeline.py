@@ -910,10 +910,26 @@ def test_upload_endpoint_path_traversal_sanitized():
     )
     assert res.status_code == 200
     assert res.json()["status"] == "success"
-    # Clean up sanitized file if created
     sanitized_path = os.path.join(settings.CORPUS_DIR, "traversal_test_public.txt")
     if os.path.exists(sanitized_path):
         os.remove(sanitized_path)
+
+
+def test_query_stream_api_success():
+    """Verifies POST /api/query/stream returns 200 OK with Server-Sent Events (SSE) metadata and progressive token chunks."""
+    payload = {
+        "question": "Can we install 1-inch Schedule 40 PVC conduit for low-voltage controls in the drop-ceiling return air plenum?",
+        "trade": "Electrical",
+        "stream": True,
+    }
+    res = client.post("/api/query/stream", json=payload)
+    assert res.status_code == 200
+    assert "text/event-stream" in res.headers.get("content-type", "")
+    content = res.text
+    assert "event: metadata" in content
+    assert "event: token" in content
+    assert "event: done" in content
+    assert "Non-Compliant" in content
 
 
 if __name__ == "__main__":

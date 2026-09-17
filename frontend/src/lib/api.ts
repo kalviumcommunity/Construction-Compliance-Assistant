@@ -201,6 +201,86 @@ export const api = {
   },
 
   /**
+   * Progressive Server-Sent Events (SSE) Streaming query endpoint POST /api/query/stream
+   */
+  queryStream: async (
+    payload: SimpleQueryRequest,
+    onMetadata: (data: StructuredQueryResponse) => void,
+    onToken: (token: string) => void,
+    onError: (err: Error) => void,
+    signal?: AbortSignal
+  ): Promise<void> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/query/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, stream: true }),
+        signal,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || errData.message || `API Error (HTTP ${res.status})`);
+      }
+
+      if (!res.body) {
+        throw new Error("ReadableStream not supported by environment.");
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const blocks = buffer.split("\n\n");
+        buffer = blocks.pop() || "";
+
+        for (const block of blocks) {
+          if (!block.trim()) continue;
+          let eventType = "message";
+          let dataStr = "";
+
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event:")) {
+              eventType = line.replace("event:", "").trim();
+            } else if (line.startsWith("data:")) {
+              dataStr = line.replace("data:", "").trim();
+            }
+          }
+
+          if (!dataStr) continue;
+
+          try {
+            const parsed = JSON.parse(dataStr);
+            if (eventType === "metadata") {
+              onMetadata(parsed);
+            } else if (eventType === "token") {
+              onToken(parsed.token || "");
+            } else if (eventType === "error") {
+              throw new Error(parsed.detail || parsed.error || "Streaming error encountered");
+            }
+          } catch (e: any) {
+            if (eventType === "error") throw e;
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        return; // Stream cancelled by user
+      }
+      if (err.message && err.message.includes("Failed to fetch")) {
+        onError(new Error(`Cannot reach backend server at ${API_BASE}. Please verify that the FastAPI backend is running.`));
+      } else {
+        onError(err);
+      }
+    }
+  },
+
+  /**
    * Evaluates compliance against live RAG backend with 45-second timeout.
    */
   verifyCompliance: async (payload: ComplianceQueryRequest, timeoutMs = 45000): Promise<ComplianceResponse> => {

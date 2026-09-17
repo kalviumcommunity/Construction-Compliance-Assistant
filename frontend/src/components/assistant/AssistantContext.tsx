@@ -73,6 +73,9 @@ type AssistantContextType = {
   loadingDocs: boolean;
   docSearchQuery: string;
   setDocSearchQuery: (val: string) => void;
+  isStreaming: boolean;
+  streamedAnswer: string;
+  cancelStream: () => void;
   handleSubmit: (e?: React.FormEvent) => void;
   handleApplyPreset: (preset: any) => void;
   toggleAction: (idx: number) => void;
@@ -112,6 +115,10 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
 
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamedAnswer, setStreamedAnswer] = useState('');
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -158,85 +165,106 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
     setCompletedActions((prev) => ({ ...prev, [idx]: !prev[idx] }));
   };
 
-  const resetConversation = () => {
-    setConversationTurns([]);
+  const cancelStream = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+    }
+    setIsStreaming(false);
+    setLoading(false);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!query.trim() || loading) return;
 
+    if (abortController) {
+      abortController.abort();
+    }
+
+    const controller = new AbortController();
+    setAbortController(controller);
+
     setLoading(true);
+    setIsStreaming(true);
+    setStreamedAnswer('');
     setError(null);
     setResult(null);
     setCompletedActions({});
     setLoadingStep(1);
 
-    const stepTimer1 = setTimeout(() => setLoadingStep(2), 700);
-    const stepTimer2 = setTimeout(() => setLoadingStep(3), 1400);
+    const stepTimer1 = setTimeout(() => setLoadingStep(2), 500);
+    const stepTimer2 = setTimeout(() => setLoadingStep(3), 1000);
 
     const currentQuery = query.trim();
 
     try {
-      const data = await api.query({
-        question: currentQuery,
-        trade,
-        jurisdiction,
-        document_type: docType,
-        top_k: searchThoroughness,
-        conversation_history: conversationTurns.slice(-6),
-      });
-
-      const retrievedChunks = (data.sources || []).map((s, idx) => ({
-        chunk_id: s.chunk_id || `chunk_${idx}`,
-        doc_title: s.document,
-        document_filename: s.document_filename || s.document,
-        clause_number: s.clause_number,
-        document_type: 'Code',
-        trade: s.trade || 'General',
-        jurisdiction: 'National',
-        page_or_section: s.page,
-        text: s.direct_quote,
-        score: 1.0,
-        chunk_index: s.chunk_index ?? idx,
-      }));
-
-      setResult({
-        ...data,
-        query: currentQuery,
-        search_metadata: data.metadata || {},
-        retrieved_chunks: retrievedChunks,
-      });
-      setActiveTab('summary');
-
-      // Update multi-turn conversation history
-      setConversationTurns((prev) => [
-        ...prev,
-        { role: 'user', content: currentQuery },
-        { role: 'assistant', content: data.summary || data.answer },
-      ]);
-
-      setLocalHistory((prev) => [
+      await api.queryStream(
         {
-          id: Date.now(),
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          query: currentQuery,
+          question: currentQuery,
           trade,
           jurisdiction,
-          verdict: data.verdict,
-          confidence: data.confidence_score,
-          projectName: currentProject.name,
+          document_type: docType,
+          top_k: searchThoroughness,
+          conversation_history: conversationTurns.slice(-6),
         },
-        ...prev.slice(0, 14),
-      ]);
-      mutateHistory();
+        (meta) => {
+          const retrievedChunks = (meta.sources || []).map((s, idx) => ({
+            chunk_id: s.chunk_id || `chunk_${idx}`,
+            doc_title: s.document,
+            document_filename: s.document_filename || s.document,
+            clause_number: s.clause_number,
+            document_type: 'Code',
+            trade: s.trade || 'General',
+            jurisdiction: 'National',
+            page_or_section: s.page,
+            text: s.direct_quote,
+            score: 1.0,
+            chunk_index: s.chunk_index ?? idx,
+          }));
+
+          setResult({
+            ...meta,
+            query: currentQuery,
+            search_metadata: meta.metadata || {},
+            retrieved_chunks: retrievedChunks,
+          });
+          setActiveTab('summary');
+
+          setLocalHistory((prev) => [
+            {
+              id: Date.now(),
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              query: currentQuery,
+              trade,
+              jurisdiction,
+              verdict: meta.verdict,
+              confidence: meta.confidence_score,
+              projectName: currentProject.name,
+            },
+            ...prev.slice(0, 14),
+          ]);
+          mutateHistory();
+        },
+        (token) => {
+          setStreamedAnswer((prev) => prev + token);
+        },
+        (err) => {
+          setError(err.message || 'Stream interrupted while retrieving compliance rules.');
+        },
+        controller.signal
+      );
     } catch (err: any) {
-      setError(err.message || 'Unable to connect to the building code library.');
+      if (err.name !== 'AbortError') {
+        setError(err.message || 'Unable to connect to the building code library.');
+      }
     } finally {
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
       setLoading(false);
+      setIsStreaming(false);
       setLoadingStep(0);
+      setAbortController(null);
     }
   };
 
@@ -253,6 +281,7 @@ export function AssistantProvider({ children }: { children: React.ReactNode }) {
         currentProject, setCurrentProject: setSelectedProject,
         projects: projects || [],
         loading, loadingStep, result, error,
+        isStreaming, streamedAnswer, cancelStream,
         activeTab, setActiveTab,
         completedActions, setCompletedActions,
         queryHistory, setQueryHistory: setLocalHistory,
