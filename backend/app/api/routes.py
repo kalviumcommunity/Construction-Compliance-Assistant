@@ -2,6 +2,8 @@
 FastAPI REST API Routes for SiteSafe Compliance Verification Assistant.
 """
 
+import asyncio
+import json
 import os
 import re
 import shutil
@@ -9,8 +11,9 @@ import tempfile
 import time
 from datetime import datetime, timezone
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Request
+from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.models.schemas import (
@@ -192,20 +195,122 @@ async def verify_compliance(payload: ComplianceQueryRequest):
         )
 
 
+async def _stream_query_generator(payload: SimpleQueryRequest):
+    """
+    Asynchronous Server-Sent Events (SSE) generator for RAG query execution.
+    Streams initial metadata, sources, and progressive answer tokens.
+    """
+    try:
+        if not payload.question or not isinstance(payload.question, str) or not payload.question.strip():
+            err_json = json.dumps({"detail": "Invalid request: 'question' must be a non-empty string."})
+            yield f"event: error\ndata: {err_json}\n\n"
+            return
+
+        req = ComplianceQueryRequest(
+            query=payload.question.strip(),
+            trade=payload.trade or "All",
+            jurisdiction=payload.jurisdiction or "All",
+            document_type=payload.document_type or "All",
+            top_k=payload.top_k or 5,
+            conversation_history=payload.conversation_history or [],
+        )
+
+        response = rag_pipeline.verify_compliance(req)
+
+        sources: List[Dict[str, Any]] = []
+        if response.retrieved_chunks:
+            for chunk in response.retrieved_chunks:
+                sources.append({
+                    "document": chunk.doc_title,
+                    "document_filename": chunk.document_filename,
+                    "chunk_id": chunk.chunk_id,
+                    "chunk_index": chunk.chunk_index,
+                    "clause_number": chunk.clause_number,
+                    "page": chunk.page_or_section,
+                    "trade": chunk.trade,
+                    "direct_quote": chunk.text[:250] + ("..." if len(chunk.text) > 250 else ""),
+                })
+
+        is_refusal = (response.verdict == ComplianceVerdict.INSUFFICIENT_DATA)
+        api_status = "refusal" if is_refusal else "success"
+
+        try:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            history_item = QueryHistoryItem(
+                id=f"h-{int(time.time() * 1000)}",
+                query=payload.question.strip(),
+                trade=payload.trade if payload.trade and payload.trade != "All" else "General",
+                verdict=response.verdict.value if hasattr(response.verdict, "value") else str(response.verdict),
+                confidence=int(response.confidence_score * 100),
+                date=now_iso,
+                sources_count=len(sources),
+                project_id="p1",
+            )
+            _query_history.insert(0, history_item)
+            if len(_query_history) > 100:
+                _query_history.pop()
+        except Exception as log_err:
+            logger.warning(f"Failed to record streaming query to history: {log_err}")
+
+        meta_payload = {
+            "status": api_status,
+            "verdict": response.verdict.value if hasattr(response.verdict, "value") else str(response.verdict),
+            "confidence_score": response.confidence_score,
+            "summary": response.summary,
+            "technical_analysis": response.technical_analysis,
+            "sources": sources,
+            "citations": [c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in response.citations],
+            "recommended_actions": response.recommended_actions,
+            "metadata": response.search_metadata,
+        }
+        yield f"event: metadata\ndata: {json.dumps(meta_payload)}\n\n"
+
+        answer_text = f"{response.summary}\n\n{response.technical_analysis}"
+        words = answer_text.split(" ")
+        for i, word in enumerate(words):
+            token = word + (" " if i < len(words) - 1 else "")
+            token_payload = json.dumps({"token": token, "index": i})
+            yield f"event: token\ndata: {token_payload}\n\n"
+            await asyncio.sleep(0.012)
+
+        yield f"event: done\ndata: {json.dumps({'status': 'completed'})}\n\n"
+    except Exception as e:
+        logger.error(f"Error streaming query: {e}", exc_info=True)
+        err_payload = json.dumps({"detail": "An internal server error occurred while streaming query."})
+        yield f"event: error\ndata: {err_payload}\n\n"
+
+
+@router.post(
+    "/query/stream",
+    tags=["Compliance"],
+    dependencies=[Depends(check_verify_rate_limit)],
+)
+async def process_query_stream(payload: SimpleQueryRequest):
+    """
+    Evaluates user question against RAG pipeline and returns progressive SSE stream.
+    """
+    return StreamingResponse(
+        _stream_query_generator(payload),
+        media_type="text/event-stream",
+    )
+
+
 @router.post(
     "/query",
-    response_model=StructuredQueryResponse,
-    status_code=status.HTTP_200_OK,
     tags=["Compliance"],
     dependencies=[Depends(check_verify_rate_limit)],
 )
 async def process_query(payload: SimpleQueryRequest):
     """
     Evaluates user question against the authoritative RAG pipeline.
-    Validates question input, executes hybrid retrieval & synthesis,
-    and returns a structured JSON response with grounded answers, sources,
-    and refusal guardrail status.
+    Supports both non-streaming JSON responses and streaming SSE.
     """
+    if payload.stream:
+        return StreamingResponse(
+            _stream_query_generator(payload),
+            media_type="text/event-stream",
+        )
+
     # 1. Validate question input
     if not payload.question or not isinstance(payload.question, str) or not payload.question.strip():
         raise HTTPException(
