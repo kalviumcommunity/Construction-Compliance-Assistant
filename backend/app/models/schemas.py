@@ -85,6 +85,42 @@ class ComplianceQueryRequest(BaseModel):
     )
 
 
+class SimpleQueryRequest(BaseModel):
+    question: str = Field(..., description="Natural language question or field observation.")
+    trade: Optional[str] = Field("All", description="Target discipline: Structural, Electrical, Fire Safety, Plumbing, or All.")
+    jurisdiction: Optional[str] = Field("All", description="Target statutory jurisdiction: National, California, NYC, or All.")
+    document_type: Optional[str] = Field("All", description="Scope: Code, Project Spec, Inspection Log, or All.")
+    top_k: Optional[int] = Field(5, ge=1, le=20, description="Maximum number of candidate chunks to retrieve.")
+    conversation_history: Optional[List[Dict[str, str]]] = Field(
+        default_factory=list,
+        description="Prior conversation turns as a list of dicts with 'role' ('user'|'assistant') and 'content'.",
+    )
+
+
+class QuerySourceInfo(BaseModel):
+    document: str = Field(..., description="Document title.")
+    document_filename: Optional[str] = Field(None, description="Actual filename of the source document.")
+    chunk_id: Optional[str] = Field(None, description="Unique chunk ID.")
+    chunk_index: Optional[int] = Field(None, description="Zero-based index of chunk.")
+    clause_number: str = Field(..., description="Clause or section number.")
+    page: str = Field(..., description="Page or section identifier.")
+    trade: str = Field("General", description="Construction trade discipline.")
+    direct_quote: Optional[str] = Field(None, description="Direct quote excerpt.")
+
+
+class StructuredQueryResponse(BaseModel):
+    status: str = Field(..., description="Either 'success' or 'refusal'.")
+    answer: str = Field(..., description="Grounded answer synthesized by the RAG engine.")
+    verdict: ComplianceVerdict = Field(..., description="Compliance determination verdict.")
+    confidence_score: float = Field(..., description="Grounding confidence score between 0.0 and 1.0.")
+    summary: str = Field(..., description="Executive summary determination.")
+    technical_analysis: str = Field(..., description="Detailed technical engineering analysis.")
+    sources: List[QuerySourceInfo] = Field(default_factory=list, description="Array of retrieved source documents and chunks.")
+    citations: List[Citation] = Field(default_factory=list, description="Structured citation metadata.")
+    recommended_actions: List[str] = Field(default_factory=list, description="Recommended field engineering actions.")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Search and execution metadata.")
+
+
 class ComplianceResponse(BaseModel):
     query: Optional[str] = None
     verdict: ComplianceVerdict

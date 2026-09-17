@@ -747,6 +747,68 @@ def test_rag_evaluation_framework():
     assert summary["guardrail_refusal_accuracy"] == 100.0
 
 
+def test_query_api_valid_question_success():
+    """Verifies POST /api/query returns 200 OK with status='success', grounded answer, and sources."""
+    payload = {
+        "question": "Can we install 1-inch Schedule 40 PVC conduit for low-voltage controls in the drop-ceiling return air plenum?",
+        "trade": "Electrical",
+    }
+    res = client.post("/api/query", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["status"] == "success"
+    assert "Non-Compliant" in data["answer"]
+    assert data["verdict"] == "Non-Compliant"
+    assert len(data["sources"]) > 0
+    assert data["sources"][0]["document"] != ""
+    assert len(data["citations"]) > 0
+
+
+def test_query_api_invalid_empty_question():
+    """Verifies POST /api/query returns 400 Bad Request when question is empty or whitespace."""
+    res = client.post("/api/query", json={"question": "   "})
+    assert res.status_code == 400
+    assert "Invalid request" in res.json()["detail"]
+
+
+def test_query_api_refusal_unsupported_question():
+    """Verifies POST /api/query returns status='refusal' on out-of-scope/unsupported questions."""
+    payload = {"question": "What is the allowable paint hue for closet door hinges?"}
+    res = client.post("/api/query", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["status"] == "refusal"
+    assert data["verdict"] == "Ambiguous/Insufficient Data"
+    assert any(term in (data["summary"] + " " + data["technical_analysis"]).lower() for term in ["couldn't find", "insufficient", "ambiguous", "refusal", "refuses"])
+
+
+def test_query_api_conversational_history():
+    """Verifies POST /api/query handles conversation_history and returns rewritten standalone query metadata."""
+    payload = {
+        "question": "What are its main prohibitions under NEC 300.22?",
+        "trade": "Electrical",
+        "conversation_history": [
+            {
+                "role": "user",
+                "content": "Can we install 1-inch Schedule 40 PVC conduit for low-voltage controls in the drop-ceiling return air plenum?",
+            },
+            {
+                "role": "assistant",
+                "content": "Non-Compliant [1]: Installation of 1-inch Schedule 40 PVC conduit in ceiling return air plenums violates NEC Article 300.22(C).",
+            },
+        ],
+    }
+    res = client.post("/api/query", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["status"] == "success"
+    assert data["metadata"]["was_rewritten"] is True
+    assert "pvc" in data["metadata"]["rewritten_query"].lower() or "plenum" in data["metadata"]["rewritten_query"].lower()
+
+
 if __name__ == "__main__":
     print("=" * 80)
     print("SITESAFE RAG PIPELINE & API AUTOMATED TEST SUITE")
@@ -785,6 +847,10 @@ if __name__ == "__main__":
         ("Conversational RAG: Single-turn Backward Compatibility", test_conversational_single_turn_backward_compatibility),
         ("Conversational RAG: Guardrail Interaction & Safe Refusal", test_conversational_guardrail_interaction),
         ("RAG End-to-End Evaluation Framework", test_rag_evaluation_framework),
+        ("Query API: Valid Question Success (200 OK)", test_query_api_valid_question_success),
+        ("Query API: Invalid Empty Question (400 Bad Request)", test_query_api_invalid_empty_question),
+        ("Query API: Safe Refusal Status", test_query_api_refusal_unsupported_question),
+        ("Query API: Conversational History & Query Rewriting", test_query_api_conversational_history),
     ]
 
     passed = 0
