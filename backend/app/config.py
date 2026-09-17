@@ -76,5 +76,9 @@ class Settings(BaseSettings):
     CHUNK_OVERLAP_TOKENS: int = 50
     TIKTOKEN_ENCODING: str = "o200k_base"
 
+    # RAG Hallucination Guardrails & Relevance Threshold Configuration
+    RAG_RELEVANCE_THRESHOLD: float = 0.01
+    MIN_RELEVANT_CHUNKS: int = 1
+
 
 settings = Settings()

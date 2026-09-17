@@ -1,7 +1,7 @@
 import re
 import os
 import logging
-from typing import List
+from typing import List, Tuple, Optional, Dict, Any
 import json
 import random
 import time
@@ -48,6 +48,39 @@ class ComplianceGenerator:
                 return True
         return False
 
+    def is_weak_retrieval(
+        self,
+        chunks: List[RetrievedChunkInfo],
+        threshold: Optional[float] = None,
+        min_chunks: Optional[int] = None,
+    ) -> Tuple[bool, str]:
+        """
+        Evaluates retrieval quality against configurable signals:
+        1. Zero retrieved chunks
+        2. Similarity score below configurable threshold
+        3. Insufficient number of chunks meeting threshold
+        4. Empty or blank context text
+        """
+        if not chunks:
+            return True, "No matching documents or chunks were retrieved from the corpus."
+
+        eff_threshold = threshold if threshold is not None else getattr(settings, "RAG_RELEVANCE_THRESHOLD", 0.01)
+        eff_min_chunks = min_chunks if min_chunks is not None else getattr(settings, "MIN_RELEVANT_CHUNKS", 1)
+
+        valid_chunks = [
+            c for c in chunks
+            if c.text and len(c.text.strip()) > 0 and (c.score >= eff_threshold or c.score == 0.0)
+        ]
+
+        if len(valid_chunks) < eff_min_chunks:
+            max_score = max((c.score for c in chunks), default=0.0)
+            return True, (
+                f"Retrieval quality is below the required relevance threshold (max score: {max_score:.4f}, required threshold: {eff_threshold:.4f}, "
+                f"valid chunks: {len(valid_chunks)} < required: {eff_min_chunks})."
+            )
+
+        return False, ""
+
     def generate_compliance_verdict(self, query: str, chunks: List[RetrievedChunkInfo]) -> LLMComplianceOutput:
         """
         Synthesizes compliance determination.
@@ -74,16 +107,18 @@ class ComplianceGenerator:
                 ],
             )
 
-        # Guardrail 2: Deterministic Safe Refusal when zero context is retrieved
-        if not chunks:
-            logger.info(f"Safe refusal triggered for ungrounded query: '{query[:80]}...' (0 chunks retrieved)")
+        # Guardrail 2: Deterministic Safe Refusal when context retrieval is weak or unsupported
+        is_weak, refusal_reason = self.is_weak_retrieval(chunks)
+        if is_weak:
+            logger.info(f"Safe refusal triggered for ungrounded/weak query: '{query[:80]}...' ({refusal_reason})")
             return LLMComplianceOutput(
                 verdict=ComplianceVerdict.INSUFFICIENT_DATA,
                 confidence_score=0.98,
-                summary="Ambiguous / Insufficient Data: No authoritative building codes or project specifications found matching this query in the corpus.",
+                summary="I couldn't find enough supporting information in the retrieved sources to answer this question.",
                 technical_analysis=(
-                    f"A hybrid semantic and keyword search for '{query}' returned zero matching regulatory passages. "
-                    "Without governing statutory code or specification references, the system strictly refuses to speculate or issue an ungrounded determination."
+                    f"Hallucination Guardrail Triggered: {refusal_reason} "
+                    "Without governing statutory code or specification references meeting the required relevance threshold, "
+                    "the system strictly refuses to speculate or generate an ungrounded determination."
                 ),
                 citations=[],
                 recommended_actions=[
@@ -283,15 +318,17 @@ class ComplianceGenerator:
 
         query_lower = query.lower()
 
-        # Rule 0: No Context Retrieved -> Explicit Safe Refusal
-        if not chunks:
+        # Rule 0: Weak or Unsupported Context Retrieval -> Explicit Safe Refusal
+        is_weak, refusal_reason = self.is_weak_retrieval(chunks)
+        if is_weak:
             return LLMComplianceOutput(
                 verdict=ComplianceVerdict.INSUFFICIENT_DATA,
                 confidence_score=0.98,
-                summary="Ambiguous / Insufficient Data: No authoritative building codes or project specifications found matching this query in the corpus.",
+                summary="I couldn't find enough supporting information in the retrieved sources to answer this question.",
                 technical_analysis=(
-                    f"A hybrid semantic and keyword search for '{query}' returned zero matching regulatory passages. "
-                    "Without governing statutory code or specification references, the system strictly refuses to speculate or issue a determination."
+                    f"Hallucination Guardrail Triggered: {refusal_reason} "
+                    "Without governing statutory code or specification references meeting the required relevance threshold, "
+                    "the system strictly refuses to speculate or generate an ungrounded determination."
                 ),
                 citations=[],
                 recommended_actions=[
