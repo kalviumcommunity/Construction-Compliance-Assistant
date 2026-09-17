@@ -525,7 +525,7 @@ def test_rag_no_fabricated_citations_fallback():
     data = res.json()
     # Out of scope / fallback refusal -> no fabricated citations
     assert data["verdict"] == ComplianceVerdict.INSUFFICIENT_DATA
-    assert "refuses" in data["technical_analysis"].lower() or "insufficient" in data["summary"].lower() or "insufficient" in data["technical_analysis"].lower()
+    assert "refuses" in data["technical_analysis"].lower() or "insufficient" in data["summary"].lower() or "couldn't find" in data["summary"].lower()
 
     # Test prompt injection attack -> zero citations
     inj_payload = {
@@ -536,6 +536,73 @@ def test_rag_no_fabricated_citations_fallback():
     assert inj_res.status_code == 200
     inj_data = inj_res.json()
     assert inj_data["citations"] == []
+
+
+# -------------------------------------------------------------
+# 8. Hallucination Guardrails Feature Tests
+# -------------------------------------------------------------
+
+def test_hallucination_guardrail_weak_retrieval_refusal():
+    """Verifies that weak retrieval returns a safe refusal message without generating answers or citations."""
+    from app.rag.generator import ComplianceGenerator
+    from app.models.schemas import RetrievedChunkInfo
+    generator = ComplianceGenerator()
+
+    # Case A: Empty chunks -> safe refusal
+    out_empty = generator.generate_compliance_verdict("Random unsupported question", chunks=[])
+    assert out_empty.verdict == ComplianceVerdict.INSUFFICIENT_DATA
+    assert "couldn't find enough supporting information" in out_empty.summary.lower()
+    assert out_empty.citations == []
+
+    # Case B: Unsupported / ungrounded query with weak retrieved chunks -> safe refusal
+    unsupported_chunks = [
+        RetrievedChunkInfo(
+            chunk_id="chunk_weak_1",
+            doc_title="Irrelevant Doc",
+            clause_number="General",
+            document_type="Code",
+            trade="General",
+            jurisdiction="National",
+            page_or_section="1",
+            text="General building information unrelated to door hinge paint hue.",
+            score=0.001,  # below threshold 0.01
+        )
+    ]
+    out_weak = generator.generate_compliance_verdict("What is the allowable paint hue for closet door hinges?", chunks=unsupported_chunks)
+    assert out_weak.verdict == ComplianceVerdict.INSUFFICIENT_DATA
+    assert "couldn't find enough supporting information" in out_weak.summary.lower()
+    assert out_weak.citations == []
+
+
+def test_hallucination_guardrail_threshold_config():
+    """Verifies that configurable relevance thresholds enforce safe refusal on low-confidence context."""
+    from app.rag.generator import ComplianceGenerator
+    from app.models.schemas import RetrievedChunkInfo
+
+    generator = ComplianceGenerator()
+    low_score_chunks = [
+        RetrievedChunkInfo(
+            chunk_id="c1",
+            doc_title="Unrelated Spec",
+            clause_number="General",
+            document_type="Code",
+            trade="General",
+            jurisdiction="National",
+            page_or_section="Page 1",
+            text="Unrelated snippet text",
+            score=0.005,  # below threshold 0.20
+        )
+    ]
+
+    # Evaluate with strict threshold=0.20 -> weak retrieval detected
+    is_weak, reason = generator.is_weak_retrieval(low_score_chunks, threshold=0.20, min_chunks=1)
+    assert is_weak
+    assert "relevance threshold" in reason.lower()
+
+    # Pass low_score_chunks with high threshold -> safe refusal output
+    out = generator.generate_compliance_verdict("Query requiring high relevance", chunks=low_score_chunks)
+    assert out.verdict == ComplianceVerdict.INSUFFICIENT_DATA
+    assert out.citations == []
 
 
 if __name__ == "__main__":
@@ -568,6 +635,8 @@ if __name__ == "__main__":
         ("RAG Citation-to-Metadata Mapping", test_rag_citation_to_metadata_mapping),
         ("RAG Source Verification against Original Chunks", test_rag_source_verification),
         ("RAG Prevention of Fabricated Citations & Fallback", test_rag_no_fabricated_citations_fallback),
+        ("Hallucination Guardrail: Weak Retrieval Safe Refusal", test_hallucination_guardrail_weak_retrieval_refusal),
+        ("Hallucination Guardrail: Relevance Threshold Configuration", test_hallucination_guardrail_threshold_config),
     ]
 
     passed = 0
