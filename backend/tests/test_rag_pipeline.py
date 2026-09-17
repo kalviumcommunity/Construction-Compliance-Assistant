@@ -728,6 +728,25 @@ def test_conversational_guardrail_interaction():
     assert any(term in (data["summary"] + " " + data["technical_analysis"]).lower() for term in ["couldn't find", "insufficient", "refuses", "ambiguous"])
 
 
+def test_rag_evaluation_framework():
+    """
+    Executes RAG evaluation benchmark suite and asserts that system meets minimum
+    quality thresholds for correctness, grounding, citation accuracy, and refusal guardrails.
+    """
+    from eval.evaluator import RAGEvaluator
+
+    dataset_path = os.path.join(backend_root, "eval", "test_dataset.json")
+    evaluator = RAGEvaluator(dataset_path=dataset_path)
+    report = evaluator.run_suite()
+
+    summary = report["summary"]
+    assert summary["total_test_cases"] == 10
+    assert summary["overall_correctness_rate"] >= 80.0
+    assert summary["overall_grounding_score"] >= 90.0
+    assert summary["overall_citation_accuracy"] >= 90.0
+    assert summary["guardrail_refusal_accuracy"] == 100.0
+
+
 if __name__ == "__main__":
     print("=" * 80)
     print("SITESAFE RAG PIPELINE & API AUTOMATED TEST SUITE")
@@ -765,6 +784,7 @@ if __name__ == "__main__":
         ("Conversational RAG: End-to-End Multi-turn Dialogue", test_conversational_multi_turn_dialogue_end_to_end),
         ("Conversational RAG: Single-turn Backward Compatibility", test_conversational_single_turn_backward_compatibility),
         ("Conversational RAG: Guardrail Interaction & Safe Refusal", test_conversational_guardrail_interaction),
+        ("RAG End-to-End Evaluation Framework", test_rag_evaluation_framework),
     ]
 
     passed = 0
