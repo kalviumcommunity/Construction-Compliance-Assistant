@@ -143,6 +143,8 @@ class VectorStoreManager:
                     "trade": chunk.get("trade", "General"),
                     "page_or_section": chunk.get("page_or_section", "1"),
                     "content": chunk.get("content", ""),
+                    "document_filename": chunk.get("document_filename"),
+                    "chunk_index": chunk.get("chunk_index"),
                 },
             )
             points.append(point)

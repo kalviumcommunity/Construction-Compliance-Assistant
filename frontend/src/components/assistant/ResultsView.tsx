@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 export function ResultsView() {
   const { result, loading, error, handleSubmit, activeTab, setActiveTab, completedActions, toggleAction, setShowNoticeModal, setShowPrintModal } = useAssistant();
   const [copiedQuoteIdx, setCopiedQuoteIdx] = useState<number | null>(null);
+  const [verifiedSourceIdx, setVerifiedSourceIdx] = useState<number | null>(null);
 
   if (loading) return null;
 
@@ -48,6 +49,32 @@ export function ResultsView() {
     navigator.clipboard.writeText(text);
     setCopiedQuoteIdx(idx);
     setTimeout(() => setCopiedQuoteIdx(null), 2000);
+  };
+
+  const renderTextWithCitations = (text: string) => {
+    if (!text) return null;
+    const parts = text.split(/(\[\d+\])/g);
+    return parts.map((part, index) => {
+      const match = part.match(/^\[(\d+)\]$/);
+      if (match) {
+        const citeNum = parseInt(match[1], 10);
+        return (
+          <button
+            key={index}
+            type="button"
+            onClick={() => {
+              setActiveTab('citations');
+              setVerifiedSourceIdx(citeNum - 1);
+            }}
+            className="inline-flex items-center justify-center px-1.5 py-0.5 mx-0.5 text-[11px] font-bold rounded bg-primary/15 text-primary border border-primary/30 hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer"
+            title={`Click to verify Citation [${citeNum}] against source metadata & original chunk`}
+          >
+            [{citeNum}]
+          </button>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
   };
 
   const primaryClause = result.citations?.[0]?.clause_number;
@@ -118,6 +145,7 @@ export function ResultsView() {
           </p>
         </div>
       </div>
+
       {/* Top Results Action Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -228,7 +256,7 @@ export function ResultsView() {
                 <span>Jobsite Takeaway (Plain-English Summary)</span>
               </div>
               <p className="text-sm leading-relaxed">
-                {result.summary}
+                {renderTextWithCitations(result.summary)}
               </p>
             </div>
           </div>
@@ -287,7 +315,7 @@ export function ResultsView() {
               </div>
             </div>
             <div className="text-sm leading-relaxed whitespace-pre-line space-y-2 pt-1">
-              {result.technical_analysis}
+              {renderTextWithCitations(result.technical_analysis)}
             </div>
           </Card>
         </div>
@@ -303,6 +331,7 @@ export function ResultsView() {
           {result.citations && result.citations.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
               {result.citations.map((cite: any, idx: number) => {
+                const citeNum = cite.citation_index || idx + 1;
                 const tradeLower = (cite.trade || '').toLowerCase().replace(/\s+/g, '');
                 const tradeClass =
                   tradeLower.includes('elec') ? 'badge-electrical' :
@@ -311,6 +340,15 @@ export function ResultsView() {
                   tradeLower.includes('plumb') ? 'badge-plumbing' :
                   'bg-muted text-muted-foreground';
 
+                const matchingChunk = result.retrieved_chunks?.find(
+                  (ch: any) =>
+                    (cite.chunk_id && ch.chunk_id === cite.chunk_id) ||
+                    (cite.chunk_index !== undefined && ch.chunk_index === cite.chunk_index) ||
+                    ch.clause_number === cite.clause_number
+                );
+
+                const isVerifying = verifiedSourceIdx === idx;
+
                 return (
                   <Card
                     key={idx}
@@ -318,6 +356,9 @@ export function ResultsView() {
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
                       <div className="flex items-center gap-2.5">
+                        <span className="px-2 py-0.5 rounded bg-primary text-primary-foreground font-bold text-xs">
+                          [{citeNum}]
+                        </span>
                         <span className="clause-badge">
                           {cite.clause_number}
                         </span>
@@ -338,9 +379,20 @@ export function ResultsView() {
                       </div>
                     </div>
 
-                    <div className="text-xs flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-sky-500" />
-                      <span className="text-muted-foreground">Section / Page: <strong className="text-foreground">{cite.page_or_section}</strong></span>
+                    {/* Metadata Mapping Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-muted/30 p-2.5 rounded-lg border text-xs">
+                      <div>
+                        <span className="text-muted-foreground block text-[10px] uppercase font-bold">Document Filename</span>
+                        <code className="text-foreground font-mono text-[11px] break-all">{cite.document_filename || matchingChunk?.document_filename || 'source_document.txt'}</code>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[10px] uppercase font-bold">Chunk ID & Index</span>
+                        <span className="text-foreground font-mono text-[11px]">{cite.chunk_id || matchingChunk?.chunk_id || `chunk_${idx}`} (Index #{cite.chunk_index ?? matchingChunk?.chunk_index ?? 0})</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[10px] uppercase font-bold">Page / Section</span>
+                        <span className="text-foreground font-medium text-[11px]">{cite.page_or_section}</span>
+                      </div>
                     </div>
 
                     <div className="citation-quote relative group">
@@ -349,17 +401,17 @@ export function ResultsView() {
                         <button
                           type="button"
                           onClick={() => copyToClipboard(cite.direct_quote, idx)}
-                          className="hover:text-primary p-1 rounded transition-colors flex items-center gap-1 font-sans"
+                          className="hover:text-primary p-1 rounded transition-colors flex items-center gap-1 font-sans text-xs"
                           title="Copy quote"
                         >
                           {copiedQuoteIdx === idx ? (
                             <><Check className="w-3 h-3 text-emerald-500" /><span className="text-emerald-500">Copied</span></>
                           ) : (
-                            <><Copy className="w-3 h-3" /><span>Copy</span></>
+                            <><Copy className="w-3 h-3" /><span>Copy Quote</span></>
                           )}
                         </button>
                       </div>
-                      <blockquote className="leading-relaxed">
+                      <blockquote className="leading-relaxed text-xs sm:text-sm">
                         &ldquo;{cite.direct_quote}&rdquo;
                       </blockquote>
                     </div>
@@ -370,13 +422,44 @@ export function ResultsView() {
                         <strong className="text-foreground font-semibold">Field Application:</strong> {cite.relevance_explanation}
                       </span>
                     </div>
+
+                    {/* Source Verification Toggle */}
+                    <div className="pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setVerifiedSourceIdx(isVerifying ? null : idx)}
+                        className="gap-1.5 text-xs w-full sm:w-auto border-primary/40 hover:bg-primary/5"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>{isVerifying ? 'Hide Original Source Chunk' : 'Verify against Original Chunk Text'}</span>
+                      </Button>
+                    </div>
+
+                    {/* Expanded Source Chunk Text */}
+                    {isVerifying && (
+                      <div className="bg-muted/80 border border-primary/30 p-3.5 rounded-xl space-y-2 animate-in fade-in duration-200">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-primary border-b pb-1.5">
+                          <span>VERIFIED ORIGINAL RETRIEVED CHUNK TEXT</span>
+                          <span className="font-mono text-muted-foreground">ID: {cite.chunk_id || matchingChunk?.chunk_id || `chunk_${idx}`}</span>
+                        </div>
+                        <p className="text-xs font-mono leading-relaxed bg-background p-3 rounded-lg border whitespace-pre-wrap text-foreground">
+                          {matchingChunk ? matchingChunk.text : cite.direct_quote}
+                        </p>
+                        <div className="text-[10px] text-muted-foreground flex justify-between pt-1">
+                          <span>Filename: <code className="font-mono text-foreground">{cite.document_filename || matchingChunk?.document_filename}</code></span>
+                          <span>Chunk Index: <strong className="text-foreground">{cite.chunk_index ?? matchingChunk?.chunk_index ?? 0}</strong></span>
+                          <span>Relevance Score: <strong className="text-foreground">{matchingChunk?.score || 1.0}</strong></span>
+                        </div>
+                      </div>
+                    )}
                   </Card>
                 );
               })}
             </div>
           ) : (
             <Card className="p-8 text-center text-sm text-muted-foreground">
-              No specific statutory clauses extracted for this query.
+              No specific statutory citations extracted for this query.
             </Card>
           )}
         </div>
@@ -388,33 +471,45 @@ export function ResultsView() {
             <p>Showing {result.retrieved_chunks?.length || 0} referenced standard excerpts:</p>
           </div>
           <div className="space-y-3">
-            {result.retrieved_chunks?.map((chunk: any, idx: number) => (
-              <Card
-                key={idx}
-                className={`p-4 space-y-2.5 bento-card animate-stagger-${Math.min((idx % 5) + 1, 5)}`}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[11px] font-bold">
-                      {idx + 1}
-                    </span>
-                    <span className="clause-badge">{chunk.clause_number}</span>
-                    <span className="text-xs text-muted-foreground">({chunk.doc_title})</span>
+            {result.retrieved_chunks?.map((chunk: any, idx: number) => {
+              const citeNum = chunk.citation_index || (result.citations?.findIndex((c: any) => c.chunk_id === chunk.chunk_id || c.clause_number === chunk.clause_number) + 1);
+              const isCited = citeNum && citeNum > 0;
+
+              return (
+                <Card
+                  key={idx}
+                  className={`p-4 space-y-2.5 bento-card animate-stagger-${Math.min((idx % 5) + 1, 5)}`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[11px] font-bold">
+                        {idx + 1}
+                      </span>
+                      {isCited && (
+                        <span className="px-2 py-0.5 rounded bg-primary text-primary-foreground font-bold text-[10px]">
+                          [{citeNum}]
+                        </span>
+                      )}
+                      <span className="clause-badge">{chunk.clause_number}</span>
+                      <span className="text-xs text-muted-foreground">({chunk.doc_title})</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground text-[10px]">{chunk.trade}</span>
+                      <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground text-[10px]">{chunk.jurisdiction}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground text-[10px]">{chunk.trade}</span>
-                    <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground text-[10px]">{chunk.jurisdiction}</span>
+                  <p className="text-sm leading-relaxed bg-muted/50 p-3 rounded-lg border font-sans">
+                    {chunk.text}
+                  </p>
+                  <div className="text-[10px] text-muted-foreground flex flex-wrap justify-between gap-2 pt-0.5">
+                    <span>Filename: <code className="font-mono text-foreground">{chunk.document_filename || 'source.txt'}</code></span>
+                    <span>Chunk ID: <code className="font-mono text-foreground">{chunk.chunk_id}</code></span>
+                    <span>Chunk Index: <strong className="text-foreground">#{chunk.chunk_index ?? idx}</strong></span>
+                    <span>Location: <strong>{chunk.page_or_section}</strong></span>
                   </div>
-                </div>
-                <p className="text-sm leading-relaxed bg-muted/50 p-3 rounded-lg border font-sans">
-                  {chunk.text}
-                </p>
-                <div className="text-[10px] text-muted-foreground flex justify-between pt-0.5">
-                  <span>Type: {chunk.document_type}</span>
-                  <span>Location: {chunk.page_or_section}</span>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}

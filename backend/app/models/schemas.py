@@ -15,6 +15,7 @@ class ComplianceVerdict(str, Enum):
 
 
 class Citation(BaseModel):
+    citation_index: Optional[int] = Field(default=None, description="Numerical citation index corresponding to inline answer citations like [1], [2].")
     clause_number: str = Field(..., description="The specific section or article code (e.g. 'IBC 705.8', 'NEC 300.22(C)').")
     document_title: str = Field(..., description="Title of the authoritative document (e.g. 'International Building Code 2021').")
     document_type: str = Field(..., description="Document category (Code, Project Spec, Inspection Log).")
@@ -23,6 +24,9 @@ class Citation(BaseModel):
     page_or_section: str = Field(..., description="Exact page, table, or section identifier.")
     direct_quote: str = Field(..., description="Verbatim text quote from the authoritative context supporting the verdict.")
     relevance_explanation: str = Field(..., description="Concise explanation of how this excerpt applies to the observation.")
+    document_filename: Optional[str] = Field(default=None, description="Actual filename of the source document.")
+    chunk_id: Optional[str] = Field(default=None, description="Unique chunk ID of the retrieved source chunk.")
+    chunk_index: Optional[int] = Field(default=None, description="Zero-based index of the chunk within the source document.")
 
 
 class RetrievedChunkInfo(BaseModel):
@@ -35,6 +39,9 @@ class RetrievedChunkInfo(BaseModel):
     page_or_section: str
     text: str
     score: float = 0.0
+    document_filename: Optional[str] = Field(default=None, description="Source document filename.")
+    chunk_index: Optional[int] = Field(default=None, description="Zero-based index of the chunk.")
+    citation_index: Optional[int] = Field(default=None, description="Corresponding numerical citation index if cited (e.g. 1 for [1]).")
 
 
 class LLMComplianceOutput(BaseModel):
